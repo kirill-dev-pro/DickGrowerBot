@@ -13,6 +13,7 @@ pub struct AppConfig {
     pub loan_payout_ratio: f32,
     pub dod_rich_exclusion_ratio: Option<Ratio>,
     pub pvp_default_bet: u16,
+    pub fire_recipients: u16,
     pub announcements: AnnouncementsConfig,
     pub command_toggles: CachedEnvToggles,
 }
@@ -33,6 +34,7 @@ impl AppConfig {
         let top_unlimited = get_env_value_or_default("TOP_UNLIMITED_ENABLED", false);
         let multiple_loans = get_env_value_or_default("MULTIPLE_LOANS_ENABLED", false);
         let pvp_default_bet = get_env_value_or_default("PVP_DEFAULT_BET", 1);
+        let fire_recipients = get_env_value_or_default("FIRE_RECIPIENTS", 5);
         let check_acceptor_length = get_env_value_or_default("PVP_CHECK_ACCEPTOR_LENGTH", false);
         let callback_locks = get_env_value_or_default("PVP_CALLBACK_LOCKS_ENABLED", true);
         let show_stats = get_env_value_or_default("PVP_STATS_SHOW", true);
@@ -57,6 +59,7 @@ impl AppConfig {
             loan_payout_ratio,
             dod_rich_exclusion_ratio,
             pvp_default_bet,
+            fire_recipients,
             announcements: AnnouncementsConfig {
                 max_shows: announcement_max_shows,
                 announcements: [

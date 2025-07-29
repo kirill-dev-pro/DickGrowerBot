@@ -30,6 +30,20 @@ pub static CMD_GROW_COUNTER: Lazy<BothModesCounters> = Lazy::new(|| {
         inline: Counter::new("command_grow (inline)", opts.const_label("mode", "inline")),
     }
 });
+pub static CMD_GIFT_COUNTER: Lazy<BothModesCounters> = Lazy::new(|| {
+    let opts = Opts::new("command_gift_usage_total", "count of /gift invocations");
+    BothModesCounters {
+        chat: Counter::new("command_gift (chat)", opts.clone().const_label("mode", "chat")),
+        inline: Counter::new("command_gift (inline)", opts.const_label("mode", "inline")),
+    }
+});
+pub static CMD_FIRE_COUNTER: Lazy<BothModesCounters> = Lazy::new(|| {
+    let opts = Opts::new("command_fire_usage_total", "count of /fire invocations");
+    BothModesCounters {
+        chat: Counter::new("command_fire (chat)", opts.clone().const_label("mode", "chat")),
+        inline: Counter::new("command_fire (inline)", opts.const_label("mode", "inline")),
+    }
+});
 pub static CMD_TOP_COUNTER: Lazy<BothModesCounters> = Lazy::new(|| {
     let opts = Opts::new("command_top_usage_total", "count of /top invocations");
     BothModesCounters {
@@ -96,6 +110,10 @@ pub fn init() -> axum::Router {
         .register(&CMD_PRIVACY_COUNTER)
         .register(&CMD_GROW_COUNTER.chat)
         .register(&CMD_GROW_COUNTER.inline)
+        .register(&CMD_GIFT_COUNTER.chat)
+        .register(&CMD_GIFT_COUNTER.inline)
+        .register(&CMD_FIRE_COUNTER.chat)
+        .register(&CMD_FIRE_COUNTER.inline)
         .register(&CMD_TOP_COUNTER.chat)
         .register(&CMD_TOP_COUNTER.inline)
         .register(&CMD_LOAN_COUNTER.invoked.chat)

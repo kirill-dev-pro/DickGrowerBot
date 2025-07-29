@@ -163,7 +163,7 @@ impl From<&ChatIdKind> for ChatIdType {
 pub struct ChatIdInternal(i64);
 
 #[allow(clippy::upper_case_acronyms)]
-#[derive(Debug, derive_more::From)]
+#[derive(Debug, derive_more::From, PartialEq, Eq, Copy, Clone)]
 pub struct UID(i64);
 
 impl From<UserId> for UID {

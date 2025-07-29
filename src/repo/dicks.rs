@@ -62,6 +62,18 @@ impl Dicks {
             .context(format!("couldn't fetch length for {chat_id} and {uid}"))
     }
 
+    pub async fn is_user_has_dick(&self, uid: UserId, chat_id: &ChatIdKind) -> anyhow::Result<bool> {
+        sqlx::query_scalar!("SELECT d.length FROM Dicks d \
+                JOIN Chats c ON d.chat_id = c.id \
+                WHERE uid = $1 AND \
+                    c.chat_id = $2::bigint OR c.chat_instance = $2::text",
+                uid.0 as i64, chat_id.value() as String)
+            .fetch_optional(&self.pool)
+            .await
+            .map(|opt| opt.is_some())
+            .context(format!("couldn't fetch length for {chat_id} and {uid}"))
+    }
+
     pub async fn fetch_dick(&self, uid: UserId, chat_id: &ChatIdKind) -> anyhow::Result<Option<Dick>> {
         sqlx::query_as!(Dick,
             r#"SELECT length, uid as owner_uid, name as owner_name, updated_at as grown_at, position FROM (

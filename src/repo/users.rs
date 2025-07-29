@@ -10,49 +10,65 @@ use crate::repository;
 pub struct User {
     pub uid: i64,
     pub name: Username,
-    pub created_at: DateTime<Utc>
+    pub created_at: DateTime<Utc>,
 }
 
-repository!(Users,
+repository!(
+    Users,
     pub async fn create_or_update(&self, user_id: UserId, name: &str) -> anyhow::Result<User> {
         let uid = user_id.0 as i64;
-        sqlx::query_as!(User,
+        sqlx::query_as!(
+            User,
             "INSERT INTO Users(uid, name) VALUES ($1, $2)
                 ON CONFLICT (uid) DO UPDATE SET name = $2
                 RETURNING uid, name, created_at",
-                uid, name)
-            .fetch_one(&self.pool)
-            .await
-            .context(format!("couldn't upsert a user with id = {user_id}"))
-    }
-,
+            uid,
+            name
+        )
+        .fetch_one(&self.pool)
+        .await
+        .context(format!("couldn't upsert a user with id = {user_id}"))
+    },
     pub async fn get_chat_members(&self, chat_id: &ChatIdKind) -> anyhow::Result<Vec<User>> {
-        sqlx::query_as!(User,
+        sqlx::query_as!(
+            User,
             "SELECT u.uid, name, created_at FROM Users u
                 JOIN Dicks d USING (uid)
                 JOIN Chats c ON d.chat_id = c.id
                 WHERE c.chat_id = $1::bigint OR c.chat_instance = $1::text",
-                chat_id.value() as String)
-            .fetch_all(&self.pool)
-            .await
-            .context(format!("couldn't get users of the chat with id = {chat_id}"))
-    }
-,
-    pub async fn get_random_active_member(&self, chat_id: &ChatIdKind) -> anyhow::Result<Option<User>> {
-        sqlx::query_as!(User,
+            chat_id.value() as String
+        )
+        .fetch_all(&self.pool)
+        .await
+        .context(format!(
+            "couldn't get users of the chat with id = {chat_id}"
+        ))
+    },
+    pub async fn get_random_active_member(
+        &self,
+        chat_id: &ChatIdKind,
+    ) -> anyhow::Result<Option<User>> {
+        sqlx::query_as!(
+            User,
             "SELECT u.uid, name, u.created_at FROM Users u
                 JOIN Dicks d USING (uid)
                 JOIN Chats c ON d.chat_id = c.id
                 WHERE (c.chat_id = $1::bigint OR c.chat_instance = $1::text)
                     AND updated_at > current_timestamp - interval '1 week'
                 ORDER BY random() LIMIT 1",
-                chat_id.value() as String)
-            .fetch_optional(&self.pool)
-            .await
-            .context(format!("couldn't get a random active user of the chat with id = {chat_id}"))
-    }
-,
-    pub async fn get_random_active_poor_member(&self, chat_id: &ChatIdKind, rich_exclusion_ratio: Ratio) -> anyhow::Result<Option<User>> {
+            chat_id.value() as String
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .context(format!(
+            "couldn't get a random active user of the chat with id = {chat_id}"
+        ))
+    },
+    pub async fn get_random_active_poor_member(
+        &self,
+        chat_id: &ChatIdKind,
+        rich_exclusion_ratio: Ratio,
+    ) -> anyhow::Result<Option<User>> {
         sqlx::query_as!(User,
             "WITH ranked_users AS (
                 SELECT u.uid, name, u.created_at, PERCENT_RANK() OVER (ORDER BY length) AS percentile_rank
@@ -70,9 +86,11 @@ repository!(Users,
             .fetch_optional(&self.pool)
             .await
             .context(format!("couldn't get a random active poor user of the chat with id = {chat_id}"))
-    }
-,
-    pub async fn get_random_active_member_with_poor_in_priority(&self, chat_id: &ChatIdKind) -> anyhow::Result<Option<User>> {
+    },
+    pub async fn get_random_active_member_with_poor_in_priority(
+        &self,
+        chat_id: &ChatIdKind,
+    ) -> anyhow::Result<Option<User>> {
         sqlx::query_as!(User,
             "WITH user_weights AS (
                 SELECT u.uid, u.name, u.created_at, d.length,
@@ -101,16 +119,27 @@ repository!(Users,
             .fetch_optional(&self.pool)
             .await
             .context(format!("couldn't get a random active user of the chat with id = {chat_id}"))
-    }
-,
+    },
     pub async fn get(&self, user_id: UserId) -> anyhow::Result<Option<User>> {
-        sqlx::query_as!(User, "SELECT uid, name, created_at FROM Users WHERE uid = $1",
-                user_id.0 as i64)
-            .fetch_optional(&self.pool)
-            .await
-            .context(format!("couldn't get a user with id = {user_id}"))
-    }
-,
+        sqlx::query_as!(
+            User,
+            "SELECT uid, name, created_at FROM Users WHERE uid = $1",
+            user_id.0 as i64
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .context(format!("couldn't get a user with id = {user_id}"))
+    },
+    // pub async fn get_by_username(&self, username: &Username) -> anyhow::Result<Option<User>> {
+    //     sqlx::query_as!(
+    //         User,
+    //         "SELECT uid, name, created_at FROM Users WHERE name = $1",
+    //         username.value_ref() as String
+    //     )
+    //     .fetch_optional(&self.pool)
+    //     .await
+    //     .context(format!("couldn't get a user with username = {username}"))
+    // },
     #[cfg(test)]
     pub async fn get_all(&self) -> anyhow::Result<Vec<User>> {
         sqlx::query_as!(User, "SELECT * FROM Users")

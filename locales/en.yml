@@ -17,6 +17,29 @@ commands:
     line: "%{n}|<b>%{name}</b> — <b>%{length}</b> cm"
     ending: "<i>[+] means a grower hasn't grown his dick today yet.</i>"
     empty: "No one is in the game yet :("
+  gift:
+    description: "Gift dick to a friend"
+    result: "<b>%{sender}</b> gifted <b>%{amount} cm</b> of dick to <b>%{recipient}</b>!\n\nNow the giver has <b>%{sender_length} cm</b>, and the recipient has <b>%{recipient_length} cm</b>."
+    error:
+      invalid_amount: "You want to gift something other than centimeters?"
+      not_enough: "Your micropenis is too short! You have <b>%{current} cm</b>, but need <b>%{required} cm</b>"
+      same_person: "You can't gift your dick to yourself"
+      wrong_person: "You can't gift your dick to this person"
+      usage: "Use this command as a reply to a message with the amount of centimeters to gift"
+      unknown: "Error: %{error}"
+  fire:
+    description: "Share your dick with multiple people"
+    result: "<b>%{sender}</b> distributed <b>%{total_amount} cm</b> among <b>%{recipients_count}</b> people (<b>%{amount_per_person} cm</b> each)!\n\nSender now has <b>%{sender_length} cm</b>."
+    line: "<b>%{name}</b> — <b>%{length}</b> cm"
+    error:
+      usage: "Usage: Distribute amount among multiple people"
+      invalid_amount: "Invalid amount! Please specify a positive number."
+      not_divisible: "Amount <b>%{amount}</b> cannot be evenly divided among <b>%{recipients}</b> people."
+      too_small: "Amount per person would be 0 cm. Increase the total amount."
+      not_enough: "Your dick is too short! You have <b>%{current} cm</b>, but need <b>%{required} cm</b>."
+      not_enough_users: "Not enough users in chat! Found <b>%{found}</b>, need <b>%{required}</b>."
+      no_transfers: "No transfers were completed."
+      unknown: "Error: %{error}"
   dod:
     description: "Elect the Dick of a Day"
     result: "The Dick of the Day is <b><a href=\"tg://user?id=%{uid}\">%{name}</a></b>!\n\nHis dick has become longer for <b>%{growth} cm</b> and is <b>%{length}</b> cm long now."

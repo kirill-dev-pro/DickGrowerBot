@@ -24,7 +24,7 @@ use crate::handlers::utils::locks::LockCallbackServiceFacade;
 
 const ENV_WEBHOOK_URL: &str = "WEBHOOK_URL";
 
-i18n!(fallback = "en");    // load localizations with default parameters
+i18n!(fallback = "ru");    // load localizations with default parameters
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
