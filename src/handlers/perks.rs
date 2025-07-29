@@ -1,23 +1,23 @@
+use crate::handlers::utils::{AdditionalChange, ChangeIntent, ConfigurablePerk, DickId, Perk};
+use crate::{config, repo};
 use async_trait::async_trait;
 use num_traits::ToPrimitive;
 use sqlx::{Pool, Postgres};
-use crate::handlers::utils::{AdditionalChange, ChangeIntent, ConfigurablePerk, DickId, Perk};
-use crate::{config, repo};
 
 pub fn all(pool: &Pool<Postgres>, cfg: &config::AppConfig) -> Vec<Box<dyn Perk>> {
     let help_pussies_coef = config::get_env_value_or_default("HELP_PUSSIES_COEF", 0.0);
     let loans = repo::Loans::new(pool.clone(), cfg);
-    
+
     vec![
         Box::new(HelpPussiesPerk {
             coefficient: help_pussies_coef,
         }),
-        Box::new(LoanPayoutPerk { loans })
+        Box::new(LoanPayoutPerk { loans }),
     ]
 }
 
 pub struct HelpPussiesPerk {
-    coefficient: f64
+    coefficient: f64,
 }
 
 #[async_trait]
@@ -28,11 +28,14 @@ impl Perk for HelpPussiesPerk {
 
     async fn apply(&self, _: &DickId, change_intent: ChangeIntent) -> AdditionalChange {
         if change_intent.current_length >= 0 {
-            return AdditionalChange(0)
+            return AdditionalChange(0);
         }
-        
-        let current_deepness = change_intent.current_length.abs()
-            .to_f64().expect("conversion is always Some");
+
+        let current_deepness = change_intent
+            .current_length
+            .abs()
+            .to_f64()
+            .expect("conversion is always Some");
         let change = (self.coefficient * current_deepness).round() as i32;
         AdditionalChange(change)
     }
@@ -61,7 +64,9 @@ impl Perk for LoanPayoutPerk {
     }
 
     async fn apply(&self, dick_id: &DickId, change_intent: ChangeIntent) -> AdditionalChange {
-        let maybe_loan_components = self.loans.get_active_loan(dick_id.0, &dick_id.1)
+        let maybe_loan_components = self
+            .loans
+            .get_active_loan(dick_id.0, &dick_id.1)
             .await
             .inspect_err(|e| log::error!("couldn't check if a perk is active: {e}"))
             .ok()
@@ -69,7 +74,7 @@ impl Perk for LoanPayoutPerk {
             .map(|loan| (loan.debt, loan.payout_ratio));
         let (debt, payout_coefficient) = match maybe_loan_components {
             Some(x) => x,
-            None => return AdditionalChange(0)
+            None => return AdditionalChange(0),
         };
 
         let payout = if change_intent.base_increment.is_positive() {
@@ -93,8 +98,8 @@ impl Perk for LoanPayoutPerk {
 mod test {
     use crate::handlers::perks::{HelpPussiesPerk, LoanPayoutPerk};
     use crate::handlers::utils::{ChangeIntent, DickId, Perk};
+    use crate::repo::test::{start_postgres, CHAT_ID_KIND, USER_ID};
     use crate::{config, repo};
-    use crate::repo::test::{CHAT_ID_KIND, start_postgres, USER_ID};
 
     #[tokio::test]
     async fn test_help_pussies() {
@@ -102,17 +107,39 @@ mod test {
             let invalid_perk = HelpPussiesPerk { coefficient: 0.0 };
             assert!(!invalid_perk.enabled())
         }
-        
+
         let perk = HelpPussiesPerk { coefficient: 0.5 };
         let dick_id = DickId(USER_ID, CHAT_ID_KIND);
-        let change_intent_positive_length = ChangeIntent { current_length: 1, base_increment: 1 };
-        let change_intent_negative_length_positive_increment = ChangeIntent { current_length: -1, base_increment: 1 };
-        let change_intent_negative_length_negative_increment = ChangeIntent { current_length: -1, base_increment: -1 };
-        
+        let change_intent_positive_length = ChangeIntent {
+            current_length: 1,
+            base_increment: 1,
+        };
+        let change_intent_negative_length_positive_increment = ChangeIntent {
+            current_length: -1,
+            base_increment: 1,
+        };
+        let change_intent_negative_length_negative_increment = ChangeIntent {
+            current_length: -1,
+            base_increment: -1,
+        };
+
         assert!(perk.enabled());
-        assert_eq!(perk.apply(&dick_id, change_intent_positive_length).await.0, 0);
-        assert_eq!(perk.apply(&dick_id, change_intent_negative_length_positive_increment).await.0, 1);
-        assert_eq!(perk.apply(&dick_id, change_intent_negative_length_negative_increment).await.0, 1);
+        assert_eq!(
+            perk.apply(&dick_id, change_intent_positive_length).await.0,
+            0
+        );
+        assert_eq!(
+            perk.apply(&dick_id, change_intent_negative_length_positive_increment)
+                .await
+                .0,
+            1
+        );
+        assert_eq!(
+            perk.apply(&dick_id, change_intent_negative_length_negative_increment)
+                .await
+                .0,
+            1
+        );
     }
 
     #[tokio::test]
@@ -128,37 +155,78 @@ mod test {
 
         {
             let users = repo::Users::new(db.clone());
-            users.create_or_update(USER_ID, "")
-                .await.expect("couldn't create a user");
-            
+            users
+                .create_or_update(USER_ID, "")
+                .await
+                .expect("couldn't create a user");
+
             let dicks = repo::Dicks::new(db, Default::default());
-            dicks.create_or_grow(USER_ID, &CHAT_ID_KIND.into(), 0)
-                .await.expect("couldn't create a dick");
+            dicks
+                .create_or_grow(USER_ID, &CHAT_ID_KIND.into(), 0)
+                .await
+                .expect("couldn't create a dick");
         }
 
-        let perk = LoanPayoutPerk { loans: loans.clone() };
+        let perk = LoanPayoutPerk {
+            loans: loans.clone(),
+        };
         let dick_id = DickId(USER_ID, CHAT_ID_KIND);
-        let change_intent_positive_increment = ChangeIntent { current_length: 1, base_increment: 10 };
-        let change_intent_positive_increment_small = ChangeIntent { current_length: 1, base_increment: 2 };
-        let change_intent_negative_increment = ChangeIntent { current_length: 1, base_increment: -1 };
+        let change_intent_positive_increment = ChangeIntent {
+            current_length: 1,
+            base_increment: 10,
+        };
+        let change_intent_positive_increment_small = ChangeIntent {
+            current_length: 1,
+            base_increment: 2,
+        };
+        let change_intent_negative_increment = ChangeIntent {
+            current_length: 1,
+            base_increment: -1,
+        };
 
         assert!(perk.enabled());
-        assert_eq!(perk.apply(&dick_id, change_intent_positive_increment).await.0, 0);
+        assert_eq!(
+            perk.apply(&dick_id, change_intent_positive_increment)
+                .await
+                .0,
+            0
+        );
 
-        loans.borrow(USER_ID, &CHAT_ID_KIND, 10)
-            .await.expect("couldn't create a loan");
+        loans
+            .borrow(USER_ID, &CHAT_ID_KIND, 10)
+            .await
+            .expect("couldn't create a loan");
 
-        assert_eq!(perk.apply(&dick_id, change_intent_positive_increment).await.0, -1);
-        let debt = loans.get_active_loan(USER_ID, &CHAT_ID_KIND)
-            .await.expect("couldn't fetch the active loan")
+        assert_eq!(
+            perk.apply(&dick_id, change_intent_positive_increment)
+                .await
+                .0,
+            -1
+        );
+        let debt = loans
+            .get_active_loan(USER_ID, &CHAT_ID_KIND)
+            .await
+            .expect("couldn't fetch the active loan")
             .expect("loan must be found")
             .debt;
         assert_eq!(debt, 9);
 
-        assert_eq!(perk.apply(&dick_id, change_intent_positive_increment_small).await.0, 0);
-        assert_eq!(perk.apply(&dick_id, change_intent_negative_increment).await.0, 0);
-        let debt = loans.get_active_loan(USER_ID, &CHAT_ID_KIND)
-            .await.expect("couldn't fetch the active loan")
+        assert_eq!(
+            perk.apply(&dick_id, change_intent_positive_increment_small)
+                .await
+                .0,
+            0
+        );
+        assert_eq!(
+            perk.apply(&dick_id, change_intent_negative_increment)
+                .await
+                .0,
+            0
+        );
+        let debt = loans
+            .get_active_loan(USER_ID, &CHAT_ID_KIND)
+            .await
+            .expect("couldn't fetch the active loan")
             .expect("loan must be found")
             .debt;
         assert_eq!(debt, 9);

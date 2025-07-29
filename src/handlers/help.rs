@@ -1,10 +1,10 @@
-use teloxide::Bot;
-use teloxide::macros::BotCommands;
-use teloxide::prelude::Message;
 use crate::domain::LanguageCode;
-use crate::handlers::{HandlerResult, reply_html};
+use crate::handlers::{reply_html, HandlerResult};
 use crate::help::HelpContainer;
 use crate::reply_html;
+use teloxide::macros::BotCommands;
+use teloxide::prelude::Message;
+use teloxide::Bot;
 
 #[derive(BotCommands, Clone)]
 #[command(rename_rule = "lowercase")]

@@ -1,7 +1,7 @@
-use std::borrow::ToOwned;
-use std::ops::Deref;
 use derive_more::{Constructor, From};
 use once_cell::sync::Lazy;
+use std::borrow::ToOwned;
+use std::ops::Deref;
 use teloxide::types::User;
 
 static DEFAULT: Lazy<LanguageCode> = Lazy::new(|| LanguageCode("en".to_string()));
@@ -45,11 +45,10 @@ impl LanguageCode {
     }
 
     fn get_language_code_or_log_if_missing(user: &User) -> Option<&String> {
-        user.language_code.as_ref()
-            .or_else(|| {
-                log::debug!("no language_code for {}, using the default", user.id);
-                None
-            })
+        user.language_code.as_ref().or_else(|| {
+            log::debug!("no language_code for {}, using the default", user.id);
+            None
+        })
     }
 
     fn from_maybe_string(maybe_string: Option<&String>) -> Self {
@@ -88,19 +87,24 @@ mod test_from_maybe_string {
     #[test]
     fn success() {
         let ru = [
-            "RU", "ru", "Ru", "rU", "ru-RU", "RU-ru", "rU-Ru", "Ru-rU",
-            "BE", "be", "Be", "bE", "be-BY", "BE-by", "bE-By", "Be-bY"
-        ].map(|code| (code, RU));
+            "RU", "ru", "Ru", "rU", "ru-RU", "RU-ru", "rU-Ru", "Ru-rU", "BE", "be", "Be", "bE",
+            "be-BY", "BE-by", "bE-By", "Be-bY",
+        ]
+        .map(|code| (code, RU));
         let en = [
-            "EN", "en", "En", "eN", "en-US", "EN-us", "eN-Us", "En-uS",
-            "c", "C", "POSIX"
-        ].map(|code| (code, EN));
+            "EN", "en", "En", "eN", "en-US", "EN-us", "eN-Us", "En-uS", "c", "C", "POSIX",
+        ]
+        .map(|code| (code, EN));
         let cases = ru.into_iter().chain(en);
 
         for (case, expected) in cases {
             let value = case.to_string();
             let result = LanguageCode::from_maybe_string(Some(&value));
-            assert_eq!(result.to_supported_language(), expected, "Case: {case}, result: {result:?}")
+            assert_eq!(
+                result.to_supported_language(),
+                expected,
+                "Case: {case}, result: {result:?}"
+            )
         }
     }
 

@@ -1,7 +1,7 @@
-use std::ops::Deref;
 use derive_more::{Constructor, From};
-use unicode_general_category::GeneralCategory::Format;
+use std::ops::Deref;
 use unicode_general_category::get_general_category;
+use unicode_general_category::GeneralCategory::Format;
 
 const LTR_MARK: char = '\u{200E}';
 
@@ -12,13 +12,15 @@ impl Username {
     pub fn value_ref(&self) -> &str {
         &self.0
     }
-    
+
     pub fn value_clone(&self) -> String {
         self.0.clone()
     }
 
     pub fn escaped(&self) -> String {
-        let safe_name: String = self.value_ref().chars()
+        let safe_name: String = self
+            .value_ref()
+            .chars()
             .filter(|c| get_general_category(*c) != Format)
             .collect();
         let ltr_name = format!("{LTR_MARK}{safe_name}{LTR_MARK}");

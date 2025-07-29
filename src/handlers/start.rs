@@ -1,12 +1,12 @@
-use base64::Engine;
+use crate::domain::{LanguageCode, Username};
+use crate::handlers::{promo_activation_impl, reply_html, HandlerResult, PROMO_START_PARAM_PREFIX};
+use crate::help::HelpContainer;
+use crate::{metrics, reply_html, repo};
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use teloxide::Bot;
+use base64::Engine;
 use teloxide::macros::BotCommands;
 use teloxide::types::Message;
-use crate::handlers::{HandlerResult, promo_activation_impl, PROMO_START_PARAM_PREFIX, reply_html};
-use crate::{metrics, reply_html, repo};
-use crate::domain::{LanguageCode, Username};
-use crate::help::HelpContainer;
+use teloxide::Bot;
 
 #[derive(BotCommands, Clone)]
 #[command(rename_rule = "lowercase")]
@@ -14,18 +14,29 @@ pub enum StartCommands {
     Start(String),
 }
 
-pub async fn start_cmd_handler(bot: Bot, msg: Message, cmd: StartCommands,
-                               help: HelpContainer, repos: repo::Repositories) -> HandlerResult {
+pub async fn start_cmd_handler(
+    bot: Bot,
+    msg: Message,
+    cmd: StartCommands,
+    help: HelpContainer,
+    repos: repo::Repositories,
+) -> HandlerResult {
     let lang_code = LanguageCode::from_maybe_user(msg.from.as_ref());
     let answer = if msg.from.as_ref().is_none() {
-        log::warn!("The /start command was invoked without a FROM field for message: {:?}", msg);
+        log::warn!(
+            "The /start command was invoked without a FROM field for message: {:?}",
+            msg
+        );
         help.get_help_message(lang_code).to_owned()
     } else {
         match cmd {
-            StartCommands::Start(promo_code) if promo_code.starts_with(PROMO_START_PARAM_PREFIX) => {
+            StartCommands::Start(promo_code)
+                if promo_code.starts_with(PROMO_START_PARAM_PREFIX) =>
+            {
                 metrics::CMD_PROMO.invoked_by_deeplink.inc();
                 let user = msg.from.as_ref().expect("user must be present here");
-                let encoded_promo_code = promo_code.strip_prefix(PROMO_START_PARAM_PREFIX)
+                let encoded_promo_code = promo_code
+                    .strip_prefix(PROMO_START_PARAM_PREFIX)
                     .expect("promo start param prefix must be present here");
                 let promo_code = decode_promo_code(encoded_promo_code)?;
                 promo_activation_impl(repos.promo, user, &promo_code).await?
@@ -49,8 +60,8 @@ fn decode_promo_code(promo_code_base64: &str) -> anyhow::Result<String> {
 
 #[cfg(test)]
 mod tests {
-    use base64::Engine;
     use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+    use base64::Engine;
 
     // TODO: implement a separate domain type for promo codes
     #[test]
@@ -58,10 +69,11 @@ mod tests {
         let code = "TEST_CODE";
         let encoded = URL_SAFE_NO_PAD.encode(code);
 
-        let decoded_bytes = URL_SAFE_NO_PAD.decode(encoded.as_bytes())
+        let decoded_bytes = URL_SAFE_NO_PAD
+            .decode(encoded.as_bytes())
             .expect("couldn't decode the encoded promo code");
-        let decoded_str = String::from_utf8(decoded_bytes)
-            .expect("couldn't convert promo code to a string");
+        let decoded_str =
+            String::from_utf8(decoded_bytes).expect("couldn't convert promo code to a string");
 
         assert_eq!(code, decoded_str);
     }

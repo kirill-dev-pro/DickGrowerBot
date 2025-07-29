@@ -1,31 +1,31 @@
-mod users;
-mod dicks;
+mod announcements;
 mod chats;
+mod dicks;
 mod import;
-mod promo;
 mod loans;
+mod promo;
 mod pvpstats;
 mod stats;
-mod announcements;
+mod users;
 
 #[cfg(test)]
 pub(crate) mod test;
 
-use anyhow::anyhow;
-use sqlx::{Pool, Postgres};
-use sqlx::postgres::PgQueryResult;
-use teloxide::types::{ChatId, UserId};
-pub use users::*;
-pub use dicks::*;
-pub use chats::*;
-pub use import::*;
-pub use promo::*;
-pub use loans::*;
-pub use pvpstats::*;
-pub use stats::*;
-pub use announcements::*;
 use crate::config;
 use crate::config::DatabaseConfig;
+pub use announcements::*;
+use anyhow::anyhow;
+pub use chats::*;
+pub use dicks::*;
+pub use import::*;
+pub use loans::*;
+pub use promo::*;
+pub use pvpstats::*;
+use sqlx::postgres::PgQueryResult;
+use sqlx::{Pool, Postgres};
+pub use stats::*;
+use teloxide::types::{ChatId, UserId};
+pub use users::*;
 
 #[derive(Clone)]
 pub struct Repositories {
@@ -59,7 +59,8 @@ impl Repositories {
 #[derive(derive_more::Display, Debug, Default, Copy, Clone)]
 pub enum ChatIdSource {
     InlineQuery,
-    #[default] Database,
+    #[default]
+    Database,
 }
 
 #[derive(derive_more::Display, Debug, Clone)]
@@ -67,7 +68,7 @@ pub enum ChatIdPartiality {
     #[display("ChatIdPartiality::Both({_0}, {_1})")]
     Both(ChatIdFull, ChatIdSource),
     #[display("ChatIdPartiality::Specific({_0})")]
-    Specific(ChatIdKind)
+    Specific(ChatIdKind),
 }
 
 impl From<ChatId> for ChatIdPartiality {
@@ -94,8 +95,8 @@ impl ChatIdPartiality {
             ChatIdPartiality::Both(ChatIdFull { id, instance }, qs) => match qs {
                 ChatIdSource::Database => ChatIdKind::ID(*id),
                 ChatIdSource::InlineQuery => ChatIdKind::Instance(instance.clone()),
-            }
-            ChatIdPartiality::Specific(kind) => kind.clone()
+            },
+            ChatIdPartiality::Specific(kind) => kind.clone(),
         }
     }
 }
@@ -117,7 +118,7 @@ impl ChatIdFull {
 #[derive(Debug, derive_more::Display, Clone, Eq, PartialEq, Hash)]
 pub enum ChatIdKind {
     ID(ChatId),
-    Instance(String)
+    Instance(String),
 }
 
 impl From<ChatId> for ChatIdKind {
@@ -179,15 +180,16 @@ impl Into<UserId> for UID {
     }
 }
 
-
-pub async fn establish_database_connection(config: &DatabaseConfig) -> Result<Pool<Postgres>, anyhow::Error> {
+pub async fn establish_database_connection(
+    config: &DatabaseConfig,
+) -> Result<Pool<Postgres>, anyhow::Error> {
     let pool = sqlx::postgres::PgPoolOptions::new()
         .max_connections(config.max_connections)
-        .connect(config.url.as_str()).await?;
+        .connect(config.url.as_str())
+        .await?;
     sqlx::migrate!().run(&pool).await?;
     Ok(pool)
 }
-
 
 #[macro_export]
 macro_rules! repository {
@@ -206,7 +208,7 @@ macro_rules! repository {
             $($methods)*
         }
     };
-    
+
     ($name:ident, with_($repoName:ident)_($repoType:tt), $($methods:item),*) => {
         #[derive(Clone)]
         pub struct $name {
@@ -224,7 +226,7 @@ macro_rules! repository {
             $($methods)*
         }
     };
-    
+
     ($name:ident, $($methods:item),*) => {
         #[derive(Clone)]
         pub struct $name {
@@ -244,6 +246,7 @@ macro_rules! repository {
 fn ensure_only_one_row_updated(res: PgQueryResult) -> Result<(), anyhow::Error> {
     match res.rows_affected() {
         1 => Ok(res),
-        x => Err(anyhow!("not only one row was updated but {x}"))
-    }.map(|_| ())
+        x => Err(anyhow!("not only one row was updated but {x}")),
+    }
+    .map(|_| ())
 }

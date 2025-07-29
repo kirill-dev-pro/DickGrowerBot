@@ -1,11 +1,11 @@
+use crate::config::Announcement;
+use crate::domain::SupportedLanguage::{EN, RU};
+use crate::domain::{LanguageCode, SupportedLanguage};
+use crate::repo::test::{dicks, start_postgres, CHAT_ID_KIND};
+use crate::{config, repo};
+use sqlx::{Pool, Postgres};
 use std::collections::HashMap;
 use std::sync::Arc;
-use sqlx::{Pool, Postgres};
-use crate::{config, repo};
-use crate::config::Announcement;
-use crate::domain::{LanguageCode, SupportedLanguage};
-use crate::domain::SupportedLanguage::{EN, RU};
-use crate::repo::test::{dicks, start_postgres, CHAT_ID_KIND};
 
 #[tokio::test]
 async fn test_configured() {
@@ -23,29 +23,37 @@ async fn test_configured_impl(db: &Pool<Postgres>, attempt: u8) {
 
     let announcements_config = config::AnnouncementsConfig {
         max_shows: 1,
-        announcements: get_announcements_as_map(attempt)
+        announcements: get_announcements_as_map(attempt),
     };
     let ann_repo = repo::Announcements::new(db.clone(), announcements_config);
     let [en, ru] = get_languages();
 
-    let announcement = ann_repo.get_new(&CHAT_ID_KIND, &en)
-        .await.expect("couldn't get an announcement");
+    let announcement = ann_repo
+        .get_new(&CHAT_ID_KIND, &en)
+        .await
+        .expect("couldn't get an announcement");
     assert!(announcement.is_some());
     assert_eq!(announcement.unwrap(), format!("test {attempt}"));
 
-    let announcement = ann_repo.get_new(&CHAT_ID_KIND, &en)
-        .await.expect("couldn't get the announcement the second time");
+    let announcement = ann_repo
+        .get_new(&CHAT_ID_KIND, &en)
+        .await
+        .expect("couldn't get the announcement the second time");
     assert!(announcement.is_none());
 
     // The same test but in Russian:
 
-    let announcement = ann_repo.get_new(&CHAT_ID_KIND, &ru)
-        .await.expect("couldn't get an announcement in Russian");
+    let announcement = ann_repo
+        .get_new(&CHAT_ID_KIND, &ru)
+        .await
+        .expect("couldn't get an announcement in Russian");
     assert!(announcement.is_some());
     assert_eq!(announcement.unwrap(), format!("тест {attempt}"));
 
-    let announcement = ann_repo.get_new(&CHAT_ID_KIND, &ru)
-        .await.expect("couldn't get the announcement in Russian the second time");
+    let announcement = ann_repo
+        .get_new(&CHAT_ID_KIND, &ru)
+        .await
+        .expect("couldn't get the announcement in Russian the second time");
     assert!(announcement.is_none());
 }
 
@@ -59,24 +67,28 @@ async fn test_no_announcements() {
 
     let announcements_config = config::AnnouncementsConfig {
         max_shows: 1,
-        announcements: Default::default()
+        announcements: Default::default(),
     };
     let ann_repo = repo::Announcements::new(db.clone(), announcements_config);
 
-    let announcement = ann_repo.get_new(&CHAT_ID_KIND, &en)
-        .await.expect("couldn't get an announcement");
+    let announcement = ann_repo
+        .get_new(&CHAT_ID_KIND, &en)
+        .await
+        .expect("couldn't get an announcement");
     assert!(announcement.is_none());
 
     // Ensure max_shows == 0 disables announcements completely:
 
     let announcements_config = config::AnnouncementsConfig {
         max_shows: 0,
-        announcements: get_announcements_as_map(1)
+        announcements: get_announcements_as_map(1),
     };
     let ann_repo = repo::Announcements::new(db.clone(), announcements_config);
 
-    let announcement = ann_repo.get_new(&CHAT_ID_KIND, &en)
-        .await.expect("couldn't get an announcement");
+    let announcement = ann_repo
+        .get_new(&CHAT_ID_KIND, &en)
+        .await
+        .expect("couldn't get an announcement");
     assert!(announcement.is_none());
 }
 
@@ -86,16 +98,20 @@ async fn create_chat(db: &Pool<Postgres>) {
 }
 
 fn get_languages() -> [LanguageCode; 2] {
-    ["en", "ru"]
-        .map(ToOwned::to_owned)
-        .map(LanguageCode::new)
+    ["en", "ru"].map(ToOwned::to_owned).map(LanguageCode::new)
 }
 
 fn get_announcements_as_map(n: u8) -> HashMap<SupportedLanguage, Announcement> {
     [(EN, format!("test {n}")), (RU, format!("тест {n}"))]
-        .map(|(lang, ann)| (lang, Announcement {
-            text: Arc::new(ann.clone()),
-            hash: Arc::new(ann.as_bytes().to_vec())
-        }))
-        .into_iter().collect()
+        .map(|(lang, ann)| {
+            (
+                lang,
+                Announcement {
+                    text: Arc::new(ann.clone()),
+                    hash: Arc::new(ann.as_bytes().to_vec()),
+                },
+            )
+        })
+        .into_iter()
+        .collect()
 }

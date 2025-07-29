@@ -1,23 +1,23 @@
-mod users;
-mod dicks;
+mod announcements;
 mod chats;
+mod dicks;
 mod import;
-mod promo;
 mod loans;
+mod promo;
 mod pvpstats;
 mod stats;
-mod announcements;
+mod users;
 
-use std::str::FromStr;
-use reqwest::Url;
-use sqlx::{Pool, Postgres};
-use teloxide::types::{ChatId, UserId};
-use testcontainers::{ContainerAsync, GenericImage, ImageExt};
-use testcontainers::core::{IntoContainerPort, WaitFor};
-use testcontainers::runners::AsyncRunner;
 use crate::config::DatabaseConfig;
 use crate::repo;
 use crate::repo::ChatIdKind;
+use reqwest::Url;
+use sqlx::{Pool, Postgres};
+use std::str::FromStr;
+use teloxide::types::{ChatId, UserId};
+use testcontainers::core::{IntoContainerPort, WaitFor};
+use testcontainers::runners::AsyncRunner;
+use testcontainers::{ContainerAsync, GenericImage, ImageExt};
 
 const POSTGRES_USER: &str = "test";
 const POSTGRES_PASSWORD: &str = "test_pw";
@@ -34,8 +34,12 @@ pub const CHAT_ID_KIND: ChatIdKind = ChatIdKind::ID(ChatId(CHAT_ID));
 pub async fn start_postgres() -> (ContainerAsync<GenericImage>, Pool<Postgres>) {
     let postgres_container = GenericImage::new("postgres", "latest")
         .with_exposed_port(POSTGRES_PORT.tcp())
-        .with_wait_for(WaitFor::message_on_stdout("PostgreSQL init process complete; ready for start up."))
-        .with_wait_for(WaitFor::message_on_stdout("PostgreSQL init process complete; ready for start up."))
+        .with_wait_for(WaitFor::message_on_stdout(
+            "PostgreSQL init process complete; ready for start up.",
+        ))
+        .with_wait_for(WaitFor::message_on_stdout(
+            "PostgreSQL init process complete; ready for start up.",
+        ))
         .with_wait_for(WaitFor::millis(300))
         .with_env_var("POSTGRES_USER", POSTGRES_USER)
         .with_env_var("POSTGRES_PASSWORD", POSTGRES_PASSWORD)
@@ -44,17 +48,21 @@ pub async fn start_postgres() -> (ContainerAsync<GenericImage>, Pool<Postgres>) 
         .await
         .expect("couldn't start Postgres database");
 
-    let postgres_port = postgres_container.get_host_port_ipv4(POSTGRES_PORT)
+    let postgres_port = postgres_container
+        .get_host_port_ipv4(POSTGRES_PORT)
         .await
         .expect("couldn't fetch port from PostgreSQL server");
-    let db_url = Url::from_str(&format!("postgres://{POSTGRES_USER}:{POSTGRES_PASSWORD}@localhost:{postgres_port}/{POSTGRES_DB}"))
-        .expect("invalid database URL");
-    let conf = DatabaseConfig{
+    let db_url = Url::from_str(&format!(
+        "postgres://{POSTGRES_USER}:{POSTGRES_PASSWORD}@localhost:{postgres_port}/{POSTGRES_DB}"
+    ))
+    .expect("invalid database URL");
+    let conf = DatabaseConfig {
         url: db_url,
         max_connections: 10,
     };
     let pool = repo::establish_database_connection(&conf)
-        .await.expect("couldn't establish a database connection");
+        .await
+        .expect("couldn't establish a database connection");
     (postgres_container, pool)
 }
 

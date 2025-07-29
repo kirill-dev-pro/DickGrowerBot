@@ -14,7 +14,7 @@ impl Ratio {
             Err(InvalidRatioValue(value))
         }
     }
-    
+
     pub fn to_value(self) -> f64 {
         self.0
     }

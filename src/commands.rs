@@ -1,15 +1,22 @@
+use crate::config::CachedEnvToggles;
+use crate::handlers::pvp::BattleCommands;
+use crate::handlers::stats::StatsCommands;
+use crate::handlers::{
+    DickCommands, DickOfDayCommands, HelpCommands, ImportCommands, LoanCommands, PrivacyCommands,
+    PromoCommands,
+};
 use futures::future::join_all;
 use rust_i18n::t;
-use teloxide::{Bot, RequestError};
 use teloxide::requests::Requester;
 use teloxide::types::{BotCommand, BotCommandScope};
 use teloxide::utils::command::BotCommands;
-use crate::config::CachedEnvToggles;
-use crate::handlers::{DickCommands, DickOfDayCommands, HelpCommands, ImportCommands, LoanCommands, PrivacyCommands, PromoCommands};
-use crate::handlers::pvp::BattleCommands;
-use crate::handlers::stats::StatsCommands;
+use teloxide::{Bot, RequestError};
 
-pub async fn set_my_commands(bot: &Bot, lang_code: &str, toggles: &CachedEnvToggles) -> Result<(), RequestError> {
+pub async fn set_my_commands(
+    bot: &Bot,
+    lang_code: &str,
+    toggles: &CachedEnvToggles,
+) -> Result<(), RequestError> {
     let personal_commands = vec![
         HelpCommands::bot_commands(),
         PrivacyCommands::bot_commands(),
@@ -24,14 +31,30 @@ pub async fn set_my_commands(bot: &Bot, lang_code: &str, toggles: &CachedEnvTogg
         LoanCommands::bot_commands(),
         StatsCommands::bot_commands(),
     ];
-    let admin_commands = [group_commands.clone(), vec![
-        ImportCommands::bot_commands(),
-    ]].concat();
+    let admin_commands = [group_commands.clone(), vec![ImportCommands::bot_commands()]].concat();
 
     let requests = vec![
-        set_commands(bot, personal_commands, BotCommandScope::AllPrivateChats, lang_code, toggles),
-        set_commands(bot, group_commands, BotCommandScope::AllGroupChats, lang_code, toggles),
-        set_commands(bot, admin_commands, BotCommandScope::AllChatAdministrators, lang_code, toggles),
+        set_commands(
+            bot,
+            personal_commands,
+            BotCommandScope::AllPrivateChats,
+            lang_code,
+            toggles,
+        ),
+        set_commands(
+            bot,
+            group_commands,
+            BotCommandScope::AllGroupChats,
+            lang_code,
+            toggles,
+        ),
+        set_commands(
+            bot,
+            admin_commands,
+            BotCommandScope::AllChatAdministrators,
+            lang_code,
+            toggles,
+        ),
     ];
     join_all(requests)
         .await
@@ -43,7 +66,13 @@ pub async fn set_my_commands(bot: &Bot, lang_code: &str, toggles: &CachedEnvTogg
         .unwrap_or(Ok(()))
 }
 
-async fn set_commands(bot: &Bot, commands: Vec<Vec<BotCommand>>, scope: BotCommandScope, lang_code: &str, toggles: &CachedEnvToggles) -> Result<(), RequestError> {
+async fn set_commands(
+    bot: &Bot,
+    commands: Vec<Vec<BotCommand>>,
+    scope: BotCommandScope,
+    lang_code: &str,
+    toggles: &CachedEnvToggles,
+) -> Result<(), RequestError> {
     let commands: Vec<BotCommand> = commands
         .concat()
         .into_iter()

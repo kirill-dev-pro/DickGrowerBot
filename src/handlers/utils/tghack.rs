@@ -1,8 +1,8 @@
-use std::fmt::Formatter;
 use anyhow::anyhow;
-use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use base64::Engine;
 use byteorder::{LittleEndian, ReadBytesExt};
+use std::fmt::Formatter;
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -26,7 +26,8 @@ impl TryFrom<&str> for InlineMessageIdInfo {
 
 pub fn resolve_inline_message_id(inline_message_id: &str) -> anyhow::Result<InlineMessageIdInfo> {
     log::debug!("inline_message_id: {inline_message_id}");
-    let info = inline_message_id.try_into()
+    let info = inline_message_id
+        .try_into()
         .map_err(|e: InvalidIDFormat| anyhow!(e))?;
     log::debug!("resolved InlineMessageIdInfo: {info:?}");
     Ok(info)
@@ -54,12 +55,11 @@ impl From<std::io::Error> for InvalidIDFormat {
 impl std::fmt::Display for InvalidIDFormat {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            InvalidIDFormat::DecodeError(err) =>
-                f.write_fmt(format_args!("IDDecodeError: {err}")),
-            InvalidIDFormat::InvalidLength(value) =>
-                f.write_fmt(format_args!("InvalidIDLength({}): {value}", value.len())),
-            InvalidIDFormat::IOError(err) =>
-                f.write_fmt(format_args!("IdIoError: {err}"))
+            InvalidIDFormat::DecodeError(err) => f.write_fmt(format_args!("IDDecodeError: {err}")),
+            InvalidIDFormat::InvalidLength(value) => {
+                f.write_fmt(format_args!("InvalidIDLength({}): {value}", value.len()))
+            }
+            InvalidIDFormat::IOError(err) => f.write_fmt(format_args!("IdIoError: {err}")),
         }
     }
 }
@@ -76,7 +76,7 @@ impl TryFrom<&str> for IDFormatKind {
         match value.len() {
             27 => Ok(IDFormatKind::ID32),
             32 => Ok(IDFormatKind::ID64),
-            _ => Err(InvalidIDFormat::InvalidLength(value.to_owned()))
+            _ => Err(InvalidIDFormat::InvalidLength(value.to_owned())),
         }
     }
 }
@@ -90,19 +90,14 @@ impl IDFormatKind {
                 let message_id = cursor.read_i32::<LittleEndian>()?;
                 let chat_id = cursor.read_i32::<LittleEndian>()?;
                 let access_hash = cursor.read_i64::<LittleEndian>()?;
-                (
-                    dc_id,
-                    chat_id.into(),
-                    message_id,
-                    access_hash,
-                )
-            },
+                (dc_id, chat_id.into(), message_id, access_hash)
+            }
             IDFormatKind::ID64 => (
                 cursor.read_i32::<LittleEndian>()?,
                 cursor.read_i64::<LittleEndian>()?,
                 cursor.read_i32::<LittleEndian>()?,
                 cursor.read_i64::<LittleEndian>()?,
-            )
+            ),
         };
         Ok(InlineMessageIdInfo {
             dc_id,

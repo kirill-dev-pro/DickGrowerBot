@@ -1,8 +1,8 @@
+use crate::domain::SupportedLanguage::{EN, RU};
+use crate::domain::{LanguageCode, Username};
 use rust_i18n::t;
 use serde::Serialize;
 use tinytemplate::TinyTemplate;
-use crate::domain::SupportedLanguage::{EN, RU};
-use crate::domain::{LanguageCode, Username};
 
 static EN_HELP: &str = include_str!("en.html");
 static RU_HELP: &str = include_str!("ru.html");
@@ -16,13 +16,18 @@ pub struct HelpContainer {
 impl HelpContainer {
     pub fn get_start_message(&self, username: Username, lang_code: LanguageCode) -> String {
         let greeting = t!("titles.greeting", locale = &lang_code);
-        format!("{}, <b>{}</b>!\n\n{}", greeting, username.escaped(), self.get_help_message(lang_code))
+        format!(
+            "{}, <b>{}</b>!\n\n{}",
+            greeting,
+            username.escaped(),
+            self.get_help_message(lang_code)
+        )
     }
 
     pub fn get_help_message(&self, lang_code: LanguageCode) -> String {
         match lang_code.to_supported_language() {
             RU => self.ru.clone(),
-            EN => self.en.clone()
+            EN => self.en.clone(),
         }
     }
 }
@@ -38,7 +43,7 @@ pub struct Context {
     pub admin_chat_ru: String,
     pub admin_chat_en: String,
     pub git_repo: String,
-    pub help_pussies_percentage: f64
+    pub help_pussies_percentage: f64,
 }
 
 pub fn render_help_messages(context: Context) -> Result<HelpContainer, tinytemplate::error::Error> {

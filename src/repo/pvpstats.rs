@@ -24,7 +24,7 @@ struct UserBattlesStatsEntity {
 
 pub trait WinRateAware {
     fn win_rate_percentage(&self) -> f64;
-    
+
     fn win_rate_formatted(&self) -> String {
         format!("{:.2}%", self.win_rate_percentage())
     }
@@ -48,12 +48,30 @@ impl WinRateAware for UserStats {
 impl From<UserStatsEntity> for UserStats {
     fn from(value: UserStatsEntity) -> Self {
         Self {
-            battles_total: value.battles_total.to_u32().expect("battles_total, fetched from the database, must not be negative"),
-            battles_won: value.battles_won.to_u32().expect("battles_won, fetched from the database, must not be negative"),
-            win_streak_max: value.win_streak_max.to_u16().expect("win_streak_max, fetched from the database, must not be negative"),
-            win_streak_current: value.win_streak_current.to_u16().expect("win_streak_current, fetched from the database, must not be negative"),
-            acquired_length: value.acquired_length.to_u32().expect("acquired_length, fetched from the database, must not be negative"),
-            lost_length: value.lost_length.to_u32().expect("lost_length, fetched from the database, must not be negative"),
+            battles_total: value
+                .battles_total
+                .to_u32()
+                .expect("battles_total, fetched from the database, must not be negative"),
+            battles_won: value
+                .battles_won
+                .to_u32()
+                .expect("battles_won, fetched from the database, must not be negative"),
+            win_streak_max: value
+                .win_streak_max
+                .to_u16()
+                .expect("win_streak_max, fetched from the database, must not be negative"),
+            win_streak_current: value
+                .win_streak_current
+                .to_u16()
+                .expect("win_streak_current, fetched from the database, must not be negative"),
+            acquired_length: value
+                .acquired_length
+                .to_u32()
+                .expect("acquired_length, fetched from the database, must not be negative"),
+            lost_length: value
+                .lost_length
+                .to_u32()
+                .expect("lost_length, fetched from the database, must not be negative"),
         }
     }
 }
@@ -74,8 +92,13 @@ impl WinRateAware for LoserStats {
 impl LoserStats {
     fn new(user_battles_stats: UserBattlesStatsEntity, prev_win_streak: i16) -> Self {
         Self {
-            win_rate_percentage: win_rate_percentage(user_battles_stats.battles_won, user_battles_stats.battles_total),
-            prev_win_streak: prev_win_streak.to_u16().expect("prev_win_streak, fetched from the database, must not be negative")
+            win_rate_percentage: win_rate_percentage(
+                user_battles_stats.battles_won,
+                user_battles_stats.battles_total,
+            ),
+            prev_win_streak: prev_win_streak
+                .to_u16()
+                .expect("prev_win_streak, fetched from the database, must not be negative"),
         }
     }
 }
@@ -107,7 +130,12 @@ repository!(BattleStatsRepo, with_(chats)_(Chats),
     }
 );
 
-async fn update_winner(tx: &mut Transaction<'_, Postgres>, chat_id: i64, uid: UserId, bet: i32) -> anyhow::Result<WinnerStats> {
+async fn update_winner(
+    tx: &mut Transaction<'_, Postgres>,
+    chat_id: i64,
+    uid: UserId,
+    bet: i32,
+) -> anyhow::Result<WinnerStats> {
     sqlx::query_as!(UserStatsEntity, "INSERT INTO Battle_Stats(uid, chat_id, battles_total, battles_won, win_streak_current, acquired_length) VALUES ($1, $2, 1, 1, 1, $3) \
                 ON CONFLICT (uid, chat_id) DO UPDATE SET \
                     battles_total = Battle_Stats.battles_total + 1, \
@@ -122,13 +150,24 @@ async fn update_winner(tx: &mut Transaction<'_, Postgres>, chat_id: i64, uid: Us
         .context(format!("couldn't update the stats of the winner: {chat_id}, {uid}, {bet}"))
 }
 
-async fn update_loser(tx: &mut Transaction<'_, Postgres>, chat_id: i64, uid: UserId, bet: i32) -> anyhow::Result<LoserStats> {
+async fn update_loser(
+    tx: &mut Transaction<'_, Postgres>,
+    chat_id: i64,
+    uid: UserId,
+    bet: i32,
+) -> anyhow::Result<LoserStats> {
     let uid = uid.0 as i64;
-    let prev_win_streak = sqlx::query_scalar!("SELECT win_streak_current FROM Battle_Stats WHERE chat_id = $1 AND uid = $2", chat_id, uid)
-        .fetch_optional(&mut **tx)
-        .await
-        .context(format!("couldn't fetch the win streak of the loser: {chat_id}, {uid}"))?
-        .unwrap_or(0);
+    let prev_win_streak = sqlx::query_scalar!(
+        "SELECT win_streak_current FROM Battle_Stats WHERE chat_id = $1 AND uid = $2",
+        chat_id,
+        uid
+    )
+    .fetch_optional(&mut **tx)
+    .await
+    .context(format!(
+        "couldn't fetch the win streak of the loser: {chat_id}, {uid}"
+    ))?
+    .unwrap_or(0);
     let win_rate = sqlx::query_as!(UserBattlesStatsEntity, "INSERT INTO Battle_Stats(uid, chat_id, battles_total, battles_won, win_streak_current, lost_length) VALUES ($1, $2, 1, 0, 0, $3) \
                 ON CONFLICT (uid, chat_id) DO UPDATE SET \
                     battles_total = Battle_Stats.battles_total + 1, \
@@ -144,7 +183,7 @@ async fn update_loser(tx: &mut Transaction<'_, Postgres>, chat_id: i64, uid: Use
 
 fn win_rate_percentage<T: Num + Into<f64>>(battles_won: T, battles_total: T) -> f64 {
     if battles_total.is_zero() {
-        return 0.0
+        return 0.0;
     }
     battles_won.into() / battles_total.into() * 100.0
 }

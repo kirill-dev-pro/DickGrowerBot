@@ -1,10 +1,10 @@
-use teloxide::Bot;
-use teloxide::macros::BotCommands;
-use teloxide::prelude::Message;
 use crate::domain::LanguageCode;
 use crate::domain::SupportedLanguage::{EN, RU};
-use crate::handlers::{HandlerResult, reply_html};
+use crate::handlers::{reply_html, HandlerResult};
 use crate::{metrics, reply_html};
+use teloxide::macros::BotCommands;
+use teloxide::prelude::Message;
+use teloxide::Bot;
 
 static EN_POLICY: &str = include_str!("en.html");
 static RU_POLICY: &str = include_str!("ru.html");

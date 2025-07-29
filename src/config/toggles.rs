@@ -9,7 +9,7 @@ pub enum DickOfDaySelectionMode {
     WEIGHTS,
     EXCLUSION,
     #[default]
-    RANDOM
+    RANDOM,
 }
 
 #[derive(Clone, Copy)]
@@ -44,18 +44,25 @@ pub struct BattlesFeatureToggles {
 
 #[derive(Clone, Default)]
 pub struct CachedEnvToggles {
-    map: Arc<RwLock<HashMap<String, bool>>>
+    map: Arc<RwLock<HashMap<String, bool>>>,
 }
 
 impl CachedEnvToggles {
     pub fn enabled(&self, key: &str) -> bool {
         log::debug!("trying to take a read lock for key '{key}'...");
-        let maybe_enabled = self.map.read().expect(CACHED_ENV_TOGGLES_POISONED_MSG).get(key).copied();
+        let maybe_enabled = self
+            .map
+            .read()
+            .expect(CACHED_ENV_TOGGLES_POISONED_MSG)
+            .get(key)
+            .copied();
         // maybe_enabled is required to drop the read lock
         maybe_enabled.unwrap_or_else(|| {
             let enabled = Self::enabled_in_env(key);
             log::debug!("trying to take a write lock for key '{key}'...");
-            self.map.write().expect(CACHED_ENV_TOGGLES_POISONED_MSG)
+            self.map
+                .write()
+                .expect(CACHED_ENV_TOGGLES_POISONED_MSG)
                 .insert(key.to_owned(), enabled);
             enabled
         })

@@ -223,25 +223,28 @@ pub(crate) async fn gift_impl(
         .is_user_has_dick(recipient.id, &chat_id.kind())
         .await
     {
-        Ok(true) => {},
+        Ok(true) => {}
         Ok(false) => {
-            log::debug!("recipient {} doesn't have a dick in {}", recipient.id, chat_id);
+            log::debug!(
+                "recipient {} doesn't have a dick in {}",
+                recipient.id,
+                chat_id
+            );
+            return Ok(format!(
+                "{}",
+                t!("commands.gift.error.wrong_person", locale = &lang_code)
+            ));
+        }
+        Err(e) => {
             return Ok(format!(
                 "{}",
                 t!(
-                    "commands.gift.error.wrong_person",
-                    locale = &lang_code
+                    "commands.gift.error.unknown",
+                    locale = &lang_code,
+                    error = e.to_string()
                 )
-            ));
+            ))
         }
-        Err(e) => return Ok(format!(
-            "{}",
-            t!(
-                "commands.gift.error.unknown",
-                locale = &lang_code,
-                error = e.to_string()
-            )
-        )),
     };
 
     let transfer_result = repos
@@ -379,7 +382,7 @@ pub(crate) async fn fire_impl(
         if remaining_amount < amount_per_person {
             break;
         }
-        
+
         futures.push(repos.dicks.move_length(
             &chat_id,
             from.id,
@@ -388,16 +391,20 @@ pub(crate) async fn fire_impl(
         ));
         remaining_amount -= amount_per_person;
     }
-    
+
     let results = futures::future::join_all(futures).await;
-    
+
     for (i, result) in results.into_iter().enumerate() {
         match result {
             Ok((_, recipient_result)) => {
                 successful_transfers.push((&top_users[i], recipient_result.new_length));
             }
             Err(e) => {
-                log::warn!("Failed to transfer to user {:?}: {}", top_users[i].owner_uid, e);
+                log::warn!(
+                    "Failed to transfer to user {:?}: {}",
+                    top_users[i].owner_uid,
+                    e
+                );
                 remaining_amount += amount_per_person;
             }
         }

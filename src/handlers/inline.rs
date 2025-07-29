@@ -1,25 +1,28 @@
-use std::collections::HashSet;
-use std::fmt::Debug;
-use std::str::FromStr;
+use crate::config::AppConfig;
+use crate::domain::{LanguageCode, Username};
+use crate::handlers::utils::callbacks::CallbackDataWithPrefix;
+use crate::handlers::utils::page::Page;
+use crate::handlers::utils::Incrementor;
+use crate::handlers::{
+    build_pagination_keyboard, dick, dod, loan, pvp, stats, utils, FromRefs, HandlerImplResult,
+    HandlerResult,
+};
+use crate::metrics;
+use crate::repo::{ChatIdFull, ChatIdSource, NoChatIdError, Repositories};
 use anyhow::{anyhow, Context};
 use futures::TryFutureExt;
 use once_cell::sync::Lazy;
 use rust_i18n::t;
+use std::collections::HashSet;
+use std::fmt::Debug;
+use std::str::FromStr;
 use strum::IntoEnumIterator;
 use strum_macros::{EnumIter, EnumString};
-use teloxide::{ApiError, Bot, RequestError};
 use teloxide::payloads::AnswerInlineQuerySetters;
 use teloxide::requests::Requester;
-use teloxide::types::*;
 use teloxide::types::ParseMode::Html;
-use crate::config::AppConfig;
-use crate::domain::{LanguageCode, Username};
-use crate::handlers::{build_pagination_keyboard, dick, dod, FromRefs, HandlerImplResult, HandlerResult, loan, stats, utils, pvp};
-use crate::handlers::utils::callbacks::CallbackDataWithPrefix;
-use crate::handlers::utils::Incrementor;
-use crate::handlers::utils::page::Page;
-use crate::metrics;
-use crate::repo::{ChatIdFull, NoChatIdError, ChatIdSource, Repositories};
+use teloxide::types::*;
+use teloxide::{ApiError, Bot, RequestError};
 
 #[derive(Debug, strum_macros::Display, EnumIter, EnumString)]
 #[strum(serialize_all = "snake_case")]
@@ -36,11 +39,11 @@ struct InlineResult {
     keyboard: Option<InlineKeyboardMarkup>,
 }
 
-impl <D: CallbackDataWithPrefix> From<HandlerImplResult<D>> for InlineResult {
+impl<D: CallbackDataWithPrefix> From<HandlerImplResult<D>> for InlineResult {
     fn from(value: HandlerImplResult<D>) -> Self {
         Self {
             text: value.text(),
-            keyboard: value.keyboard()
+            keyboard: value.keyboard(),
         }
     }
 }
@@ -55,80 +58,102 @@ impl InlineResult {
 }
 
 impl InlineCommand {
-    async fn execute(&self, repos: &Repositories, config: AppConfig, incr: Incrementor, from_refs: FromRefs<'_>) -> anyhow::Result<InlineResult> {
+    async fn execute(
+        &self,
+        repos: &Repositories,
+        config: AppConfig,
+        incr: Incrementor,
+        from_refs: FromRefs<'_>,
+    ) -> anyhow::Result<InlineResult> {
         match self {
             InlineCommand::Grow => {
                 metrics::CMD_GROW_COUNTER.inline.inc();
                 dick::grow_impl(repos, incr, from_refs)
                     .await
                     .map(InlineResult::text)
-            },
+            }
             InlineCommand::Top => {
                 metrics::CMD_TOP_COUNTER.inline.inc();
                 dick::top_impl(repos, &config, from_refs, Page::first())
                     .await
                     .map(|top| {
                         let mut res = InlineResult::text(top.lines);
-                        res.keyboard = config.features.top_unlimited
-                            .then_some(build_pagination_keyboard(Page::first(), top.has_more_pages));
+                        res.keyboard =
+                            config
+                                .features
+                                .top_unlimited
+                                .then_some(build_pagination_keyboard(
+                                    Page::first(),
+                                    top.has_more_pages,
+                                ));
                         res
                     })
-            },
+            }
             InlineCommand::DickOfDay => {
                 metrics::CMD_DOD_COUNTER.inline.inc();
                 dod::dick_of_day_impl(config, repos, incr, from_refs)
                     .await
                     .map(InlineResult::text)
-            },
+            }
             InlineCommand::Loan => {
                 metrics::CMD_LOAN_COUNTER.invoked.inline.inc();
                 loan::loan_impl(repos, from_refs, config)
                     .await
                     .map(InlineResult::from)
-            },
+            }
             InlineCommand::Stats => {
                 metrics::CMD_STATS.inline.inc();
                 stats::chat_stats_impl(repos, from_refs, config.features.pvp)
                     .await
                     .map(InlineResult::text)
-            },
+            }
         }
     }
 }
 
-type ExternalVariantBuilder = fn(&InlineQuery, &LanguageCode, &AppConfig, &Username) -> InlineQueryResult;
+type ExternalVariantBuilder =
+    fn(&InlineQuery, &LanguageCode, &AppConfig, &Username) -> InlineQueryResult;
 
 struct ExternalVariant {
     result_id: &'static str,
-    builder: ExternalVariantBuilder
+    builder: ExternalVariantBuilder,
 }
 
 struct ExternalVariants {
     result_ids: HashSet<&'static str>,
-    builders: Vec<ExternalVariantBuilder>
+    builders: Vec<ExternalVariantBuilder>,
 }
 impl ExternalVariants {
     fn new(variants: &'static [ExternalVariant]) -> Self {
-        let result_ids = variants.iter()
-            .map(|v| v.result_id)
-            .collect();
-        let builders = variants.iter()
-            .map(|v| v.builder)
-            .collect();
-        Self { result_ids, builders }
+        let result_ids = variants.iter().map(|v| v.result_id).collect();
+        let builders = variants.iter().map(|v| v.builder).collect();
+        Self {
+            result_ids,
+            builders,
+        }
     }
 }
 
-static EXTERNAL_VARIANTS: Lazy<ExternalVariants> = Lazy::new(|| ExternalVariants::new(&[
-    ExternalVariant {
+static EXTERNAL_VARIANTS: Lazy<ExternalVariants> = Lazy::new(|| {
+    ExternalVariants::new(&[ExternalVariant {
         result_id: "pvp",
         builder: |query, lang_code, app_config, name| {
-            pvp::build_inline_keyboard_article_result(query.from.id, lang_code, name, app_config.pvp_default_bet)
-        }
-    }
-]));
+            pvp::build_inline_keyboard_article_result(
+                query.from.id,
+                lang_code,
+                name,
+                app_config.pvp_default_bet,
+            )
+        },
+    }])
+});
 
-pub async fn inline_handler(bot: Bot, query: InlineQuery, repos: Repositories, app_config: AppConfig) -> HandlerResult {
+pub async fn inline_handler(
+    bot: Bot,
+    query: InlineQuery,
+    repos: Repositories,
+    app_config: AppConfig,
+) -> HandlerResult {
     metrics::INLINE_COUNTER.invoked();
 
     let name = utils::get_full_name(&query.from);
@@ -143,15 +168,18 @@ pub async fn inline_handler(bot: Bot, query: InlineQuery, repos: Repositories, a
         .map(|key| {
             let t_key = format!("inline.results.titles.{key}");
             let title = t!(&t_key, locale = &lang_code);
-            let content = InputMessageContent::Text(InputMessageContentText::new(
-                t!("inline.results.text", locale = &lang_code)));
-            let mut article = InlineQueryResultArticle::new(
-                key.clone(), title, content
-            );
-            let buttons = vec![vec![
-                InlineKeyboardButton::callback(btn_label.clone(), format!("{uid}:{key}"))
-            ]];
-            article.reply_markup.replace(InlineKeyboardMarkup::new(buttons));
+            let content = InputMessageContent::Text(InputMessageContentText::new(t!(
+                "inline.results.text",
+                locale = &lang_code
+            )));
+            let mut article = InlineQueryResultArticle::new(key.clone(), title, content);
+            let buttons = vec![vec![InlineKeyboardButton::callback(
+                btn_label.clone(),
+                format!("{uid}:{key}"),
+            )]];
+            article
+                .reply_markup
+                .replace(InlineKeyboardMarkup::new(buttons));
             InlineQueryResult::Article(article)
         })
         .collect();
@@ -159,25 +187,37 @@ pub async fn inline_handler(bot: Bot, query: InlineQuery, repos: Repositories, a
         results.push(builder(&query, &lang_code, &app_config, &name))
     }
 
-    let mut answer = bot.answer_inline_query(&query.id, results.clone())
+    let mut answer = bot
+        .answer_inline_query(&query.id, results.clone())
         .is_personal(true);
     if cfg!(debug_assertions) {
         answer.cache_time.replace(1);
     }
-    answer.await.context(format!("couldn't answer inline query {query:?} with results {results:?}"))?;
+    answer.await.context(format!(
+        "couldn't answer inline query {query:?} with results {results:?}"
+    ))?;
     Ok(())
 }
 
-pub async fn inline_chosen_handler(bot: Bot, result: ChosenInlineResult,
-                                   repos: Repositories, config: AppConfig,
-                                   incr: Incrementor) -> HandlerResult {
+pub async fn inline_chosen_handler(
+    bot: Bot,
+    result: ChosenInlineResult,
+    repos: Repositories,
+    config: AppConfig,
+    incr: Incrementor,
+) -> HandlerResult {
     metrics::INLINE_COUNTER.finished();
 
-    if EXTERNAL_VARIANTS.result_ids.contains(result.result_id.as_str()) {
-        return Ok(())
+    if EXTERNAL_VARIANTS
+        .result_ids
+        .contains(result.result_id.as_str())
+    {
+        return Ok(());
     }
 
-    let maybe_chat_in_sync = result.inline_message_id.as_ref()
+    let maybe_chat_in_sync = result
+        .inline_message_id
+        .as_ref()
         .and_then(try_resolve_chat_id)
         .map(|chat_id| repos.chats.get_chat(chat_id.into()));
     if let Some(chat_in_sync_future) = maybe_chat_in_sync {
@@ -185,21 +225,28 @@ pub async fn inline_chosen_handler(bot: Bot, result: ChosenInlineResult,
             .map_ok(|res| res.filter(|c| c.chat_id.is_some() && c.chat_instance.is_some()))
             .await?;
         if let Some(chat) = maybe_chat {
-            log::debug!("[inline_chosen_handler] chat: {chat:?}, user_id: {}", result.from.id);
+            log::debug!(
+                "[inline_chosen_handler] chat: {chat:?}, user_id: {}",
+                result.from.id
+            );
 
-            let cmd = InlineCommand::from_str(&result.result_id)
-                .context(format!("couldn't parse inline command '{}'", result.result_id))?;
+            let cmd = InlineCommand::from_str(&result.result_id).context(format!(
+                "couldn't parse inline command '{}'",
+                result.result_id
+            ))?;
             let chat_id = chat.try_into().map_err(|e: NoChatIdError| anyhow!(e))?;
             let from_refs = FromRefs(&result.from, &chat_id);
             let inline_result = cmd.execute(&repos, config, incr, from_refs).await?;
 
-            let inline_message_id = result.inline_message_id
+            let inline_message_id = result
+                .inline_message_id
                 .ok_or("inline_message_id must be set if the chat_in_sync_future exists")?;
             let mut request = bot.edit_message_text_inline(inline_message_id, &inline_result.text);
             request.reply_markup = inline_result.keyboard;
             request.parse_mode.replace(Html);
             request.disable_web_page_preview.replace(true);
-            request.await
+            request
+                .await
                 .inspect_err(|e| log_text_if_unknown_api_error(&inline_result.text, e))?;
         }
     }
@@ -207,27 +254,37 @@ pub async fn inline_chosen_handler(bot: Bot, result: ChosenInlineResult,
     Ok(())
 }
 
-pub async fn callback_handler(bot: Bot, query: CallbackQuery,
-                              repos: Repositories, config: AppConfig,
-                              incr: Incrementor) -> HandlerResult {
+pub async fn callback_handler(
+    bot: Bot,
+    query: CallbackQuery,
+    repos: Repositories,
+    config: AppConfig,
+    incr: Incrementor,
+) -> HandlerResult {
     let lang_code = LanguageCode::from_user(&query.from);
     let mut answer = bot.answer_callback_query(&query.id);
 
     if let (Some(inline_msg_id), Some(data)) = (&query.inline_message_id, &query.data) {
-        let chat_id = config.features.chats_merging
+        let chat_id = config
+            .features
+            .chats_merging
             .then(|| utils::resolve_inline_message_id(inline_msg_id))
             .map(|res| match res {
                 Ok(info) => ChatIdFull {
                     id: ChatId(info.chat_id),
                     instance: query.chat_instance.clone(),
-                }.to_partiality(ChatIdSource::InlineQuery),
+                }
+                .to_partiality(ChatIdSource::InlineQuery),
                 Err(err) => {
                     log::error!("callback_handler couldn't resolve an inline_message_id: {err}");
                     query.chat_instance.clone().into()
                 }
             })
             .unwrap_or(query.chat_instance.clone().into());
-        log::debug!("[callback_handler] chat_id: {chat_id:?}, user_id: {}", query.from.id);
+        log::debug!(
+            "[callback_handler] chat_id: {chat_id:?}, user_id: {}",
+            query.from.id
+        );
 
         let parse_res = parse_callback_data(data, query.from.id);
         if let Ok(CallbackDataParseResult::Ok(cmd)) = parse_res {
@@ -247,7 +304,9 @@ pub async fn callback_handler(bot: Bot, query: CallbackQuery,
                     log::error!("unknown callback data: {e}");
                     "unknown_data"
                 }
-                Ok(CallbackDataParseResult::Ok(_)) => panic!("unexpected CallbackDataParseResult::Ok(_)")
+                Ok(CallbackDataParseResult::Ok(_)) => {
+                    panic!("unexpected CallbackDataParseResult::Ok(_)")
+                }
             };
             let t_key = format!("inline.callback.errors.{key}");
             let text = t!(&t_key, locale = &lang_code).to_string();
@@ -260,7 +319,9 @@ pub async fn callback_handler(bot: Bot, query: CallbackQuery,
         answer.show_alert.replace(true);
     };
 
-    answer.await.context(format!("couldn't answer a callback query {query:?}"))?;
+    answer
+        .await
+        .context(format!("couldn't answer a callback query {query:?}"))?;
     Ok(())
 }
 
@@ -270,7 +331,10 @@ enum CallbackDataParseResult {
     Invalid,
 }
 
-fn parse_callback_data(data: &str, user_id: UserId) -> Result<CallbackDataParseResult, strum::ParseError> {
+fn parse_callback_data(
+    data: &str,
+    user_id: UserId,
+) -> Result<CallbackDataParseResult, strum::ParseError> {
     data.split_once(':')
         .map(|(uid, data)| {
             if uid == user_id.0.to_string() {

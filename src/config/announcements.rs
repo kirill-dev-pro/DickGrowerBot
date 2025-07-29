@@ -1,8 +1,8 @@
+use crate::domain::{LanguageCode, SupportedLanguage};
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::ops::Not;
 use std::sync::Arc;
-use sha2::{Digest, Sha256};
-use crate::domain::{LanguageCode, SupportedLanguage};
 
 #[derive(Clone, Default)]
 pub struct AnnouncementsConfig {
@@ -24,7 +24,7 @@ pub struct Announcement {
 
 impl Announcement {
     pub(super) fn new(text: String) -> Option<Self> {
-        text.is_empty().not().then(|| Self  {
+        text.is_empty().not().then(|| Self {
             hash: Arc::new(Sha256::digest(text.as_bytes()).to_vec()),
             text: Arc::new(text),
         })

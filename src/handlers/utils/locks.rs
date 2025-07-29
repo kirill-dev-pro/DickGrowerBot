@@ -1,17 +1,18 @@
-use std::sync::Arc;
+use crate::config::FeatureToggles;
 use derive_more::Display;
 use flurry::HashSet;
-use crate::config::FeatureToggles;
+use std::sync::Arc;
 
 use crate::handlers::utils::callbacks::CallbackDataWithPrefix;
 
 // TODO: create a Redis based implementation
-pub trait LockCallbackServiceImplTrait : Clone + Send + Sync {
+pub trait LockCallbackServiceImplTrait: Clone + Send + Sync {
     type Guard;
-    
-    fn try_lock<T>(&mut self, callback_data: &T) -> Option<Self::Guard> 
-    where Self::Guard: Guard,
-          T: CallbackDataWithPrefix;
+
+    fn try_lock<T>(&mut self, callback_data: &T) -> Option<Self::Guard>
+    where
+        Self::Guard: Guard,
+        T: CallbackDataWithPrefix;
 }
 
 pub trait Guard: Send + Sync {}
@@ -34,11 +35,13 @@ impl LockCallbackServiceFacade {
     }
 
     pub fn try_lock<T>(&mut self, callback_data: &T) -> Option<Box<dyn Guard>>
-    where T: CallbackDataWithPrefix,
+    where
+        T: CallbackDataWithPrefix,
     {
         match self {
             Self::NoOp => Some(Box::<NoOpGuard>::default()),
-            Self::InMemory(service) => service.try_lock(callback_data)
+            Self::InMemory(service) => service
+                .try_lock(callback_data)
                 .map(|guard| Box::new(guard) as Box<dyn Guard>),
         }
     }
@@ -50,15 +53,16 @@ impl Guard for NoOpGuard {}
 
 #[derive(Clone, Default)]
 pub struct InMemoryLockCallbackService {
-    inner_set: Arc<HashSet<String>>
+    inner_set: Arc<HashSet<String>>,
 }
 
 impl LockCallbackServiceImplTrait for InMemoryLockCallbackService {
     type Guard = InMemorySetGuard;
-    
+
     fn try_lock<T>(&mut self, callback_data: &T) -> Option<Self::Guard>
-    where Self::Guard: Guard,
-          T: CallbackDataWithPrefix
+    where
+        Self::Guard: Guard,
+        T: CallbackDataWithPrefix,
     {
         let key = callback_data.to_string();
         if self.inner_set.contains(&key, &self.inner_set.guard()) {
@@ -75,7 +79,7 @@ impl LockCallbackServiceImplTrait for InMemoryLockCallbackService {
 #[display("InMemorySetGuard({key})")]
 pub struct InMemorySetGuard {
     set_ref: Arc<HashSet<String>>,
-    key: String
+    key: String,
 }
 
 impl InMemorySetGuard {

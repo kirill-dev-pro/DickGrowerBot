@@ -1,9 +1,9 @@
-use reqwest::Url;
+use crate::config::announcements::*;
 use crate::config::env::*;
 use crate::config::toggles::*;
-use crate::config::announcements::*;
 use crate::domain::Ratio;
 use crate::domain::SupportedLanguage::{EN, RU};
+use reqwest::Url;
 
 #[derive(Clone)]
 #[cfg_attr(test, derive(Default))]
@@ -21,7 +21,7 @@ pub struct AppConfig {
 #[derive(Clone)]
 pub struct DatabaseConfig {
     pub url: Url,
-    pub max_connections: u32
+    pub max_connections: u32,
 }
 
 impl AppConfig {
@@ -53,7 +53,7 @@ impl AppConfig {
                     callback_locks,
                     show_stats,
                     show_stats_notice,
-                }
+                },
             },
             top_limit,
             loan_payout_ratio,
@@ -62,13 +62,11 @@ impl AppConfig {
             fire_recipients,
             announcements: AnnouncementsConfig {
                 max_shows: announcement_max_shows,
-                announcements: [
-                    (EN, announcement_en),
-                    (RU, announcement_ru),
-                ].map(|(lc, text)| (lc, Announcement::new(text)))
+                announcements: [(EN, announcement_en), (RU, announcement_ru)]
+                    .map(|(lc, text)| (lc, Announcement::new(text)))
                     .into_iter()
                     .filter_map(|(lc, mb_ann)| mb_ann.map(|ann| (lc, ann)))
-                    .collect()
+                    .collect(),
             },
             command_toggles: Default::default(),
         }
@@ -79,7 +77,7 @@ impl DatabaseConfig {
     pub fn from_env() -> anyhow::Result<Self> {
         Ok(Self {
             url: get_env_mandatory_value("DATABASE_URL")?,
-            max_connections: get_env_value_or_default("DATABASE_MAX_CONNECTIONS", 10)
+            max_connections: get_env_value_or_default("DATABASE_MAX_CONNECTIONS", 10),
         })
     }
 }
