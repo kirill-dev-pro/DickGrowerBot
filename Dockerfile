@@ -22,7 +22,7 @@ COPY .sqlx/ .sqlx/
 COPY Cargo.* ./
 
 ENV RUSTFLAGS='-C target-feature=-crt-static'
-RUN cargo build --release && mv target/release/dick-grower-bot /dickGrowerBot
+RUN cargo build --release --bin dick-grower-bot && mv target/release/dick-grower-bot /dickGrowerBot
 
 FROM alpine:3.21
 RUN apk update && apk add --no-cache libgcc
