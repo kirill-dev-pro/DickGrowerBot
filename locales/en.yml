@@ -33,7 +33,7 @@ commands:
     line: "<b>%{name}</b> — <b>%{length}</b> cm"
     error:
       usage: "Usage: Distribute amount among multiple people"
-      invalid_amount: "Invalid amount! Please specify a positive number."
+      invalid_amount: "You want to gift something other than centimeters?"
       not_divisible: "Amount <b>%{amount}</b> cannot be evenly divided among <b>%{recipients}</b> people."
       too_small: "Amount per person would be 0 cm. Increase the total amount."
       not_enough: "Your dick is too short! You have <b>%{current} cm</b>, but need <b>%{required} cm</b>."

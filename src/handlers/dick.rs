@@ -14,6 +14,8 @@ use teloxide::types::{
 use teloxide::Bot;
 
 use page::{InvalidPage, Page};
+use rand::rngs::OsRng;
+use rand::Rng;
 
 use crate::domain::{LanguageCode, Username};
 use crate::handlers::utils::{callbacks, page, Incrementor};
@@ -281,6 +283,43 @@ pub(crate) async fn gift_impl(
     }
 }
 
+async fn get_random_chat_users(
+    repos: &repo::Repositories,
+    chat_id: &repo::ChatIdKind,
+    sender_id: UserId,
+    count: u16,
+) -> anyhow::Result<Vec<repo::Dick>> {
+    let total = repos
+        .dicks
+        .count_chat_members(chat_id, Some(sender_id))
+        .await?;
+
+    if total == 0 {
+        return Ok(vec![]);
+    }
+
+    let count = count.min(total as u16);
+    let mut indices = std::collections::HashSet::new();
+
+    while indices.len() < count as usize {
+        let idx = OsRng.gen_range(0..total);
+        indices.insert(idx);
+    }
+
+    let mut users = Vec::with_capacity(count as usize);
+    for idx in indices {
+        if let Some(user) = repos
+            .dicks
+            .get_nth_user(chat_id, Some(sender_id), idx as u32)
+            .await?
+        {
+            users.push(user);
+        }
+    }
+
+    Ok(users)
+}
+
 pub(crate) async fn fire_impl(
     repos: &repo::Repositories,
     msg: &Message,
@@ -340,35 +379,29 @@ pub(crate) async fn fire_impl(
         ));
     }
 
-    let top_users = match repos
-        .dicks
-        .get_top(&chat_id.kind(), 0, recipients_count as u16 + 1)
-        .await
-    {
-        Ok(users) => users
-            .into_iter()
-            .filter(|user| user.owner_uid != UID::from(from.id))
-            .take(recipients_count as usize)
-            .collect::<Vec<_>>(),
-        Err(e) => {
-            return Ok(format!(
-                "{}",
-                t!(
-                    "commands.fire.error.unknown",
-                    locale = &lang_code,
-                    error = e.to_string()
-                )
-            ))
-        }
-    };
+    let random_users =
+        match get_random_chat_users(repos, &chat_id.kind(), from.id, recipients_count as u16).await
+        {
+            Ok(users) => users,
+            Err(e) => {
+                return Ok(format!(
+                    "{}",
+                    t!(
+                        "commands.fire.error.unknown",
+                        locale = &lang_code,
+                        error = e.to_string()
+                    )
+                ))
+            }
+        };
 
-    if top_users.len() < recipients_count as usize {
+    if random_users.len() < recipients_count as usize {
         return Ok(format!(
             "{}",
             t!(
                 "commands.fire.error.not_enough_users",
                 locale = &lang_code,
-                found = top_users.len(),
+                found = random_users.len(),
                 required = recipients_count
             )
         ));
@@ -378,7 +411,7 @@ pub(crate) async fn fire_impl(
     let mut remaining_amount = total_amount;
 
     let mut futures = Vec::new();
-    for user in &top_users {
+    for user in &random_users {
         if remaining_amount < amount_per_person {
             break;
         }
@@ -397,12 +430,12 @@ pub(crate) async fn fire_impl(
     for (i, result) in results.into_iter().enumerate() {
         match result {
             Ok((_, recipient_result)) => {
-                successful_transfers.push((&top_users[i], recipient_result.new_length));
+                successful_transfers.push((&random_users[i], recipient_result.new_length));
             }
             Err(e) => {
                 log::warn!(
                     "Failed to transfer to user {:?}: {}",
-                    top_users[i].owner_uid,
+                    random_users[i].owner_uid,
                     e
                 );
                 remaining_amount += amount_per_person;

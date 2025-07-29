@@ -321,4 +321,53 @@ impl Dicks {
         ))?;
         Ok(())
     }
+    
+    pub(crate) async fn count_chat_members(&self, chat_id: &ChatIdKind, sender_id: Option<UserId>) -> anyhow::Result<u64> {
+        let sender_uid = sender_id.map(|id| id.0 as i64);
+        let count = sqlx::query_scalar!(
+            r"SELECT COUNT(*) as count
+                FROM dicks d
+                JOIN chats c ON c.id = d.chat_id
+                WHERE (c.chat_id = $1::bigint OR c.chat_instance = $1::text)
+                AND ($2::bigint IS NULL OR d.uid != $2)",
+            chat_id.value() as String,
+            sender_uid
+        )
+        .fetch_one(&self.pool)
+        .await
+        .context(format!("couldn't count chat members for {chat_id}"))?;
+        
+        Ok(count.unwrap_or(0) as u64)
+    }
+
+    pub(crate) async fn get_nth_user(
+        &self,
+        chat_id: &ChatIdKind,
+        sender_id: Option<UserId>,
+        index: u32,
+    ) -> anyhow::Result<Option<Dick>> {
+        let sender_uid = sender_id.map(|id| id.0 as i64);
+        let user = sqlx::query_as!(
+            Dick,
+            r"SELECT length, uid as owner_uid, name as owner_name, updated_at as grown_at,
+                    ROW_NUMBER() OVER (ORDER BY length DESC, updated_at DESC, name) AS position
+                FROM dicks d
+                JOIN users using (uid)
+                JOIN chats c ON c.id = d.chat_id
+                WHERE (c.chat_id = $1::bigint OR c.chat_instance = $1::text)
+                AND ($2::bigint IS NULL OR d.uid != $2)
+                ORDER BY length DESC, updated_at DESC, name
+                OFFSET $3 LIMIT 1",
+            chat_id.value() as String,
+            sender_uid,
+            index as i64
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .context(format!(
+            "couldn't get nth user (index={index}) for {chat_id}"
+        ))?;
+        
+        Ok(user)
+    }
 }
