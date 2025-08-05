@@ -19,17 +19,15 @@ jobs:
         uses: hecrj/setup-rust-action@v1
       - run: echo "🖥️ The workflow is now ready to test your code on the runner."
 
-      - name: Install SQLx CLI
-        run: cargo install sqlx-cli --no-default-features --features postgres
-
-      - name: Prepare SQLx query cache
-        run: cargo sqlx prepare
-
       - name: Build
         run: cargo build --verbose
+        env:
+          SQLX_OFFLINE: true
 
       - name: Test
         run: cargo test --verbose
+        env:
+          SQLX_OFFLINE: true
 
       - run: echo "🍏 This job's status is ${{ job.status }}."
 
