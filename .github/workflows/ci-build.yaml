@@ -23,7 +23,7 @@ jobs:
         run: cargo install sqlx-cli --no-default-features --features postgres
 
       - name: Prepare SQLx query cache
-        run: cargo sqlx prepare --check
+        run: cargo sqlx prepare
 
       - name: Build
         run: cargo build --verbose
