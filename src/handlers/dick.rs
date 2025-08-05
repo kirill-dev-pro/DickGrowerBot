@@ -74,7 +74,7 @@ pub async fn dick_cmd_handler(
         }
         DickCommands::Gift => {
             metrics::CMD_GIFT_COUNTER.chat.inc();
-            let answer = gift_impl(&repos, &msg, from_refs).await?;
+            let answer = gift_impl(&repos, &msg, from_refs, &config).await?;
             reply_html(bot, &msg, answer)
         }
         DickCommands::Fire => {
@@ -155,6 +155,7 @@ pub(crate) async fn gift_impl(
     repos: &repo::Repositories,
     msg: &Message,
     from_refs: FromRefs<'_>,
+    config: &config::AppConfig,
 ) -> anyhow::Result<String> {
     let (from, chat_id) = (from_refs.0, from_refs.1);
     let lang_code = LanguageCode::from_user(from);
@@ -200,6 +201,17 @@ pub(crate) async fn gift_impl(
         return Ok(format!(
             "{}",
             t!("commands.gift.error.same_person", locale = &lang_code)
+        ));
+    }
+
+    if let Some(custom_name) = config.gift_restriction.restrictions.get(&recipient.id.0) {
+        return Ok(format!(
+            "{}",
+            t!(
+                "commands.gift.error.restricted_user",
+                locale = &lang_code,
+                name = custom_name
+            )
         ));
     }
 

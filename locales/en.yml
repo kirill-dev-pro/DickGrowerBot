@@ -25,6 +25,7 @@ commands:
       not_enough: "Your micropenis is too short! You have <b>%{current} cm</b>, but need <b>%{required} cm</b>"
       same_person: "You can't gift your dick to yourself"
       wrong_person: "You can't gift your dick to this person"
+      restricted_user: "You can't gift your dick %{name}"
       usage: "Use this command as a reply to a message with the amount of centimeters to gift"
       unknown: "Error: %{error}"
   fire:

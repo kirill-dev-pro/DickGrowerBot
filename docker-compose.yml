@@ -37,6 +37,9 @@ services:
       - ANNOUNCEMENT_MAX_SHOWS
       - ANNOUNCEMENT_EN
       - ANNOUNCEMENT_RU
+      - GIFT_RESTRICTIONS_FILE
+    volumes:
+      - ./config:/app/config:ro
     expose:
       - 8080
     networks:

@@ -65,6 +65,7 @@ ARG DOD_RICH_EXCLUSION_RATIO
 ARG ANNOUNCEMENT_MAX_SHOWS
 ARG ANNOUNCEMENT_EN
 ARG ANNOUNCEMENT_RU
+ARG GIFT_RESTRICTIONS_FILE
 ENTRYPOINT [ "/usr/local/bin/dickGrowerBot" ]
 
 LABEL org.opencontainers.image.source=https://github.com/kozalosev/DickGrowerBot
