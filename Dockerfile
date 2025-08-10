@@ -34,6 +34,8 @@ COPY --from=builder /etc/group /etc/group
 USER appuser:appuser
 
 EXPOSE 8080
+
+ARG API_KEY
 ARG TELOXIDE_TOKEN
 ARG RUST_LOG
 ARG WEBHOOK_URL

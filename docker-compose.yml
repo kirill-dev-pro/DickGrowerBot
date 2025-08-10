@@ -6,6 +6,7 @@ services:
     container_name: dickgrowerbot
     restart: unless-stopped
     environment:
+      - API_KEY
       - TELOXIDE_TOKEN
       - RUST_LOG
       - WEBHOOK_URL

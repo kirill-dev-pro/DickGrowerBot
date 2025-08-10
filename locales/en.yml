@@ -143,6 +143,10 @@ titles:
     top_line: "The following perks affected the result"
     help-pussies: "deep hole"
     loan-payout: "micro-loaner"
-errors:
-  not_group_chat: "This bot is supposed to do its mission in group chats only!"
-  feature_disabled: "This feature is currently temporarily disabled."
+  errors:
+    not_group_chat: "This bot is supposed to do its mission in group chats only!"
+    feature_disabled: "This feature is currently temporarily disabled."
+api:
+  adjust:
+    increased: "<b>%{name}</b>'s dick was increased by <b>%{delta} cm</b>. Current length: <b>%{length} cm</b>.\nReason: %{reason}"
+    decreased: "<b>%{name}</b>'s dick was decreased by <b>%{delta} cm</b>. Current length: <b>%{length} cm</b>.\nReason: %{reason}"
