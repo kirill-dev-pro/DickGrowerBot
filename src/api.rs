@@ -29,36 +29,6 @@ pub struct AdjustRequest {
 enum AdjustResponse {
     Applied { new_length: i32 },
     Skipped { reason: String },
-    Duplicate,
-}
-
-use once_cell::sync::Lazy;
-use std::collections::hash_map::Entry;
-use std::time::{Duration, Instant};
-static IDEMPOTENCY: Lazy<parking_lot::Mutex<std::collections::HashMap<String, Instant>>> =
-    Lazy::new(|| parking_lot::Mutex::new(std::collections::HashMap::new()));
-
-const IDEMPOTENCY_TTL: Duration = Duration::from_secs(60 * 60 * 24);
-
-fn check_and_remember_idempotency(key: &str) -> bool {
-    let now = Instant::now();
-    let mut map = IDEMPOTENCY.lock();
-    if map.len() > 1000 {
-        map.retain(|_, t| now.duration_since(*t) < IDEMPOTENCY_TTL);
-    }
-    match map.entry(key.to_string()) {
-        Entry::Occupied(entry) => {
-            if now.duration_since(*entry.get()) < IDEMPOTENCY_TTL {
-                return false;
-            }
-            *entry.into_mut() = now;
-            true
-        }
-        Entry::Vacant(v) => {
-            v.insert(now);
-            true
-        }
-    }
 }
 
 pub fn router(state: ApiState) -> Router {
@@ -82,12 +52,6 @@ async fn adjust(
         .unwrap_or("");
     if state.api_key.is_empty() || token != state.api_key {
         return Err((StatusCode::UNAUTHORIZED, "unauthorized".into()));
-    }
-
-    if let Some(req_id) = headers.get("x-request-id").and_then(|v| v.to_str().ok()) {
-        if !check_and_remember_idempotency(req_id) {
-            return Ok((StatusCode::OK, Json(AdjustResponse::Duplicate)));
-        }
     }
 
     debug!(

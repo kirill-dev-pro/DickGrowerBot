@@ -694,7 +694,6 @@ dependencies = [
  "log",
  "num-traits",
  "once_cell",
- "parking_lot",
  "pretty_env_logger",
  "prometheus",
  "rand",
