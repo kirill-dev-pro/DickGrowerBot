@@ -77,6 +77,7 @@ pub(crate) async fn chat_stats_impl(
         .unwrap_or_default();
     let length_stats = t!(
         "commands.stats.length",
+        name = from_refs.0.first_name,
         locale = &lang_code,
         length = length,
         pos = position
