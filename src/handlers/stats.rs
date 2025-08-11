@@ -86,6 +86,7 @@ pub(crate) async fn chat_stats_impl(
         .get_stats(&from_refs.1.kind(), from_refs.0.id)
         .await
         .map(|stats| {
+            let losses = stats.battles_total.saturating_sub(stats.battles_won);
             t!(
                 "commands.stats.pvp",
                 locale = &lang_code,
@@ -93,6 +94,9 @@ pub(crate) async fn chat_stats_impl(
                 win_streak = stats.win_streak_max,
                 battles = stats.battles_total,
                 wins = stats.battles_won,
+                losses = losses,
+                lose_streak_current = stats.lose_streak_current,
+                lose_streak_max = stats.lose_streak_max,
                 acquired = stats.acquired_length,
                 lost = stats.lost_length
             )

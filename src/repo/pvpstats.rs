@@ -12,6 +12,8 @@ struct UserStatsEntity {
     battles_won: i32,
     win_streak_max: i16,
     win_streak_current: i16,
+    lose_streak_max: i16,
+    lose_streak_current: i16,
     acquired_length: i32,
     lost_length: i32,
 }
@@ -35,6 +37,8 @@ pub struct UserStats {
     pub battles_won: u32,
     pub win_streak_max: u16,
     pub win_streak_current: u16,
+    pub lose_streak_max: u16,
+    pub lose_streak_current: u16,
     pub acquired_length: u32,
     pub lost_length: u32,
 }
@@ -64,6 +68,14 @@ impl From<UserStatsEntity> for UserStats {
                 .win_streak_current
                 .to_u16()
                 .expect("win_streak_current, fetched from the database, must not be negative"),
+            lose_streak_max: value
+                .lose_streak_max
+                .to_u16()
+                .expect("lose_streak_max, fetched from the database, must not be negative"),
+            lose_streak_current: value
+                .lose_streak_current
+                .to_u16()
+                .expect("lose_streak_current, fetched from the database, must not be negative"),
             acquired_length: value
                 .acquired_length
                 .to_u32()
@@ -119,9 +131,12 @@ repository!(BattleStatsRepo, with_(chats)_(Chats),
     }
 ,
     pub async fn get_stats(&self, chat_id_kind: &ChatIdKind, user_id: UserId) -> anyhow::Result<UserStats> {
-        sqlx::query_as!(UserStatsEntity, "SELECT battles_total, battles_won, win_streak_max, win_streak_current, acquired_length, lost_length FROM Battle_Stats \
-                WHERE chat_id = (SELECT id FROM Chats WHERE chat_id = $1::bigint OR chat_instance = $1::text) AND uid = $2",
-            chat_id_kind.value() as String, user_id.0 as i64)
+        sqlx::query_as::<_, UserStatsEntity>(
+            "SELECT battles_total, battles_won, win_streak_max, win_streak_current, lose_streak_max, lose_streak_current, acquired_length, lost_length FROM Battle_Stats \
+                WHERE chat_id = (SELECT id FROM Chats WHERE chat_id = $1::bigint OR chat_instance = $1::text) AND uid = $2"
+        )
+        .bind(chat_id_kind.value() as String)
+        .bind(user_id.0 as i64)
         .fetch_optional(&self.pool)
         .await
         .map(Option::unwrap_or_default)
@@ -136,18 +151,23 @@ async fn update_winner(
     uid: UserId,
     bet: i32,
 ) -> anyhow::Result<WinnerStats> {
-    sqlx::query_as!(UserStatsEntity, "INSERT INTO Battle_Stats(uid, chat_id, battles_total, battles_won, win_streak_current, acquired_length) VALUES ($1, $2, 1, 1, 1, $3) \
+    sqlx::query_as::<_, UserStatsEntity>(
+        "INSERT INTO Battle_Stats(uid, chat_id, battles_total, battles_won, win_streak_current, lose_streak_current, acquired_length) VALUES ($1, $2, 1, 1, 1, 0, $3) \
                 ON CONFLICT (uid, chat_id) DO UPDATE SET \
                     battles_total = Battle_Stats.battles_total + 1, \
                     battles_won = Battle_Stats.battles_won + 1, \
                     win_streak_current = Battle_Stats.win_streak_current + 1, \
+                    lose_streak_current = 0, \
                     acquired_length = Battle_Stats.acquired_length + $3 \
-                RETURNING battles_total, battles_won, win_streak_max, win_streak_current, acquired_length, lost_length",
-            uid.0 as i64, chat_id, bet)
-        .fetch_one(&mut **tx)
-        .await
-        .map(WinnerStats::from)
-        .context(format!("couldn't update the stats of the winner: {chat_id}, {uid}, {bet}"))
+                RETURNING battles_total, battles_won, win_streak_max, win_streak_current, lose_streak_max, lose_streak_current, acquired_length, lost_length"
+    )
+    .bind(uid.0 as i64)
+    .bind(chat_id)
+    .bind(bet)
+    .fetch_one(&mut **tx)
+    .await
+    .map(WinnerStats::from)
+    .context(format!("couldn't update the stats of the winner: {chat_id}, {uid}, {bet}"))
 }
 
 async fn update_loser(
@@ -168,13 +188,18 @@ async fn update_loser(
         "couldn't fetch the win streak of the loser: {chat_id}, {uid}"
     ))?
     .unwrap_or(0);
-    let win_rate = sqlx::query_as!(UserBattlesStatsEntity, "INSERT INTO Battle_Stats(uid, chat_id, battles_total, battles_won, win_streak_current, lost_length) VALUES ($1, $2, 1, 0, 0, $3) \
+    let win_rate = sqlx::query_as::<_, UserBattlesStatsEntity>(
+        "INSERT INTO Battle_Stats(uid, chat_id, battles_total, battles_won, win_streak_current, lose_streak_current, lost_length) VALUES ($1, $2, 1, 0, 0, 1, $3) \
                 ON CONFLICT (uid, chat_id) DO UPDATE SET \
                     battles_total = Battle_Stats.battles_total + 1, \
                     win_streak_current = 0, \
+                    lose_streak_current = Battle_Stats.lose_streak_current + 1, \
                     lost_length = Battle_Stats.lost_length + $3 \
-                RETURNING battles_total, battles_won",
-            uid, chat_id, bet)
+                RETURNING battles_total, battles_won"
+    )
+    .bind(uid)
+    .bind(chat_id)
+    .bind(bet)
         .fetch_one(&mut **tx)
         .await
         .context(format!("couldn't update the stats of the loser: {chat_id}, {uid}, {bet}"))?;
