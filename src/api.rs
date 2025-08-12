@@ -156,7 +156,7 @@ async fn get_user(
                 uid.0,
                 d.owner_name,
                 d.length,
-                d.position.map(|p| p as i64),
+                d.position,
             )),
         ))
     } else {

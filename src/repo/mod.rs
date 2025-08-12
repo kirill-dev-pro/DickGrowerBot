@@ -7,6 +7,7 @@ mod promo;
 mod pvpstats;
 mod stats;
 mod users;
+mod transfers;
 
 #[cfg(test)]
 pub(crate) mod test;
@@ -26,6 +27,7 @@ use sqlx::{Pool, Postgres};
 pub use stats::*;
 use teloxide::types::{ChatId, UserId};
 pub use users::*;
+pub use transfers::*;
 
 #[derive(Clone)]
 pub struct Repositories {
@@ -38,6 +40,7 @@ pub struct Repositories {
     pub announcements: Announcements,
     pub pvp_stats: BattleStatsRepo,
     pub personal_stats: PersonalStatsRepo,
+    pub transfers: Transfers,
 }
 
 impl Repositories {
@@ -52,6 +55,7 @@ impl Repositories {
             announcements: Announcements::new(db_conn.clone(), config.announcements.clone()),
             pvp_stats: BattleStatsRepo::new(db_conn.clone(), config.features),
             personal_stats: PersonalStatsRepo::new(db_conn.clone()),
+            transfers: Transfers::new(db_conn.clone(), config.features),
         }
     }
 }

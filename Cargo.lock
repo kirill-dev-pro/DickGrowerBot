@@ -691,6 +691,7 @@ dependencies = [
  "downcast-rs",
  "flurry",
  "futures",
+ "include_dir",
  "log",
  "num-traits",
  "once_cell",

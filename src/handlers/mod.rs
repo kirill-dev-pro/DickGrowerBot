@@ -1,5 +1,6 @@
 mod dick;
 mod dod;
+mod admin;
 mod help;
 mod import;
 mod inline;
@@ -27,6 +28,7 @@ use crate::domain::LanguageCode;
 use crate::handlers::utils::callbacks::CallbackDataWithPrefix;
 pub use dick::*;
 pub use dod::*;
+pub use admin::*;
 pub use help::*;
 pub use import::*;
 pub use inline::*;

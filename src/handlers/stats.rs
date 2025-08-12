@@ -75,12 +75,19 @@ pub(crate) async fn chat_stats_impl(
         .await?
         .map(|dick| (dick.length, dick.position.unwrap_or_default()))
         .unwrap_or_default();
+    let user = repos.users.get(from_refs.0.id).await?;
+    let personal = repos.personal_stats.get(from_refs.0.id).await?;
     let length_stats = t!(
         "commands.stats.length",
-        name = from_refs.0.first_name,
+        name = user
+            .as_ref()
+            .map(|u| u.name.to_string())
+            .unwrap_or("ноунейм".to_string()),
         locale = &lang_code,
         length = length,
-        pos = position
+        pos = position,
+        given_cm = personal.given_cm,
+        received_cm = personal.received_cm
     );
     let pvp_stats = repos
         .pvp_stats
@@ -92,6 +99,7 @@ pub(crate) async fn chat_stats_impl(
                 "commands.stats.pvp",
                 locale = &lang_code,
                 win_rate = stats.win_rate_formatted(),
+                win_streak_current = stats.win_streak_current,
                 win_streak = stats.win_streak_max,
                 battles = stats.battles_total,
                 wins = stats.battles_won,
@@ -101,14 +109,38 @@ pub(crate) async fn chat_stats_impl(
                 acquired = stats.acquired_length,
                 lost = stats.lost_length
             )
-        })
-        .map(|s| {
-            if features.show_stats_notice {
-                let notice = t!("commands.stats.notice", locale = &lang_code);
-                format!("{}\n\n<i>{}</i>", s, notice)
-            } else {
-                s.to_string()
-            }
         })?;
-    Ok(format!("{length_stats}\n\n{pvp_stats}"))
+
+    // let casino_stats = t!(
+    //     "commands.stats.casino",
+    //     locale = &lang_code,
+    //     bets = 0,
+    //     wins = 0,
+    //     losses = 0,
+    //     win_streak_current = 0,
+    //     win_streak = 0,
+    //     lose_streak_current = 0,
+    //     lose_streak_max = 0,
+    //     acquired = 0,
+    //     lost = 0
+    // );
+
+    let notice = if features.show_stats_notice {
+        let notice = t!(
+            "commands.stats.notice",
+            locale = &lang_code,
+            date = user
+                .as_ref()
+                .map(|u| u.created_at.format("%d.%m.%Y").to_string())
+                .unwrap_or("хуй знает когда".to_string())
+        );
+        format!("\n\n<i>{notice}</i>")
+    } else {
+        "".to_string()
+    };
+
+    Ok(format!(
+        // "{length_stats}\n\n{pvp_stats}\n\n{casino_stats}{notice}"
+        "{length_stats}\n\n{pvp_stats}{notice}"
+    ))
 }

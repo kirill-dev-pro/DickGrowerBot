@@ -150,6 +150,7 @@ pub fn get_params_for_message_edit(
         .ok_or("no message")
 }
 
+#[allow(clippy::large_enum_variant)]
 pub enum CallbackAnswerParams {
     Answer {
         answer: JsonRequest<AnswerCallbackQuery>,

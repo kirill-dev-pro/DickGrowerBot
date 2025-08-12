@@ -68,17 +68,13 @@ pub async fn promo_requested_handler(
     dialogue: PromoCodeDialogue,
     repos: repo::Repositories,
 ) -> HandlerResult {
-    let answer = match msg.text() {
-        Some(code) => {
-            dialogue.exit().await?;
-
-            let user = msg.from.as_ref().ok_or("no from user")?;
-            promo_activation_impl(repos.promo, user, code).await?
-        }
-        None => {
-            let lang_code = LanguageCode::from_maybe_user(msg.from.as_ref());
-            t!("commands.promo.request", locale = &lang_code).to_string()
-        }
+    let answer = if let Some(code) = msg.text() {
+        dialogue.exit().await?;
+        let user = msg.from.as_ref().ok_or("no from user")?;
+        promo_activation_impl(repos.promo, user, code).await?
+    } else {
+        let lang_code = LanguageCode::from_maybe_user(msg.from.as_ref());
+        t!("commands.promo.request", locale = &lang_code).to_string()
     };
     reply_html!(bot, msg, answer);
     Ok(())
@@ -99,7 +95,7 @@ pub async fn promo_inline_handler(bot: Bot, query: InlineQuery) -> HandlerResult
         code = promo_code
     );
     let encoded_query = URL_SAFE_NO_PAD.encode(promo_code.as_bytes());
-    let deeplink_start_param = format!("{}{}", PROMO_START_PARAM_PREFIX, encoded_query);
+    let deeplink_start_param = format!("{PROMO_START_PARAM_PREFIX}{encoded_query}");
     let button = InlineQueryResultsButton {
         text: button_text.to_string(),
         kind: InlineQueryResultsButtonKind::StartParameter(deeplink_start_param),
