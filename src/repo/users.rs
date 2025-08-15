@@ -130,6 +130,52 @@ repository!(
         .await
         .context(format!("couldn't get a user with id = {user_id}"))
     },
+    pub async fn delete_everything(&self, user_id: UserId) -> anyhow::Result<u64> {
+        let mut tx = self.pool.begin().await?;
+
+        sqlx::query!("DELETE FROM transfers WHERE from_uid = $1 OR to_uid = $1", user_id.0 as i64)
+            .execute(&mut *tx)
+            .await
+            .context("couldn't delete transfers for user")?;
+
+        sqlx::query!("DELETE FROM Promo_Code_Activations WHERE uid = $1", user_id.0 as i64)
+            .execute(&mut *tx)
+            .await
+            .context("couldn't delete promo code activations for user")?;
+
+        sqlx::query!("DELETE FROM Loans WHERE uid = $1", user_id.0 as i64)
+            .execute(&mut *tx)
+            .await
+            .context("couldn't delete loans for user")?;
+
+        sqlx::query!("DELETE FROM Dick_of_Day WHERE winner_uid = $1", user_id.0 as i64)
+            .execute(&mut *tx)
+            .await
+            .context("couldn't delete Dick_of_Day records for user")?;
+
+        sqlx::query!("DELETE FROM Battle_Stats WHERE uid = $1", user_id.0 as i64)
+            .execute(&mut *tx)
+            .await
+            .context("couldn't delete battle stats for user")?;
+
+        sqlx::query!("DELETE FROM Imports WHERE uid = $1", user_id.0 as i64)
+            .execute(&mut *tx)
+            .await
+            .context("couldn't delete imports for user")?;
+
+        sqlx::query!("DELETE FROM Dicks WHERE uid = $1", user_id.0 as i64)
+            .execute(&mut *tx)
+            .await
+            .context("couldn't delete dicks for user")?;
+
+        let res = sqlx::query!("DELETE FROM Users WHERE uid = $1", user_id.0 as i64)
+            .execute(&mut *tx)
+            .await
+            .context(format!("couldn't delete a user with id = {user_id}"))?;
+
+        tx.commit().await?;
+        Ok(res.rows_affected())
+    },
     // pub async fn get_by_username(&self, username: &Username) -> anyhow::Result<Option<User>> {
     //     sqlx::query_as!(
     //         User,

@@ -14,11 +14,13 @@ use teloxide::types::{
 use teloxide::Bot;
 
 use page::{InvalidPage, Page};
+use rand::rngs::OsRng;
+use rand::Rng;
 
 use crate::domain::{LanguageCode, Username};
 use crate::handlers::utils::{callbacks, page, Incrementor};
 use crate::handlers::{reply_html, utils, HandlerResult};
-use crate::repo::{ChatIdPartiality, UID};
+use crate::repo::{ChatIdPartiality, TransferKind, UID};
 use crate::{config, metrics, repo};
 
 const TOMORROW_SQL_CODE: &str = "GD0E1";
@@ -72,7 +74,7 @@ pub async fn dick_cmd_handler(
         }
         DickCommands::Gift => {
             metrics::CMD_GIFT_COUNTER.chat.inc();
-            let answer = gift_impl(&repos, &msg, from_refs).await?;
+            let answer = gift_impl(&repos, &msg, from_refs, &config).await?;
             reply_html(bot, &msg, answer)
         }
         DickCommands::Fire => {
@@ -153,6 +155,7 @@ pub(crate) async fn gift_impl(
     repos: &repo::Repositories,
     msg: &Message,
     from_refs: FromRefs<'_>,
+    config: &config::AppConfig,
 ) -> anyhow::Result<String> {
     let (from, chat_id) = (from_refs.0, from_refs.1);
     let lang_code = LanguageCode::from_user(from);
@@ -201,10 +204,22 @@ pub(crate) async fn gift_impl(
         ));
     }
 
-    let sender_length = match repos.dicks.fetch_length(from.id, &chat_id.kind()).await {
-        Ok(length) => length,
-        Err(_) => 0,
-    };
+    if let Some(custom_name) = config.gift_restriction.restrictions.get(&recipient.id.0) {
+        return Ok(format!(
+            "{}",
+            t!(
+                "commands.gift.error.restricted_user",
+                locale = &lang_code,
+                name = custom_name
+            )
+        ));
+    }
+
+    let sender_length: i32 = repos
+        .dicks
+        .fetch_length(from.id, &chat_id.kind())
+        .await
+        .unwrap_or_default();
 
     if sender_length < amount as i32 {
         return Ok(format!(
@@ -255,15 +270,23 @@ pub(crate) async fn gift_impl(
     match transfer_result {
         Ok((sender_result, recipient_result)) => {
             let sender_name = utils::get_full_name(from);
-            let recipient_name = utils::get_full_name(&recipient);
+            let recipient_name = utils::get_full_name(recipient);
+
+            if let Err(e) = repos
+                .transfers
+                .log(chat_id, from.id, recipient.id, amount as i32, TransferKind::Gift)
+                .await
+            {
+                log::warn!("failed to log gift transfer: {e}");
+            }
 
             Ok(format!(
                 "{}",
                 t!(
                     "commands.gift.result",
                     locale = &lang_code,
-                    sender = sender_name.to_string(),
-                    recipient = recipient_name.to_string(),
+                    sender = sender_name.value_ref(),
+                    recipient = recipient_name.value_ref(),
                     amount = amount,
                     sender_length = sender_result.new_length,
                     recipient_length = recipient_result.new_length
@@ -279,6 +302,43 @@ pub(crate) async fn gift_impl(
             )
         )),
     }
+}
+
+async fn get_random_chat_users(
+    repos: &repo::Repositories,
+    chat_id: &repo::ChatIdKind,
+    sender_id: UserId,
+    count: u16,
+) -> anyhow::Result<Vec<repo::Dick>> {
+    let total = repos
+        .dicks
+        .count_chat_members(chat_id, Some(sender_id))
+        .await?;
+
+    if total == 0 {
+        return Ok(vec![]);
+    }
+
+    let count = count.min(total as u16);
+    let mut indices = std::collections::HashSet::new();
+
+    while indices.len() < count as usize {
+        let idx = OsRng.gen_range(0..total);
+        indices.insert(idx);
+    }
+
+    let mut users = Vec::with_capacity(count as usize);
+    for idx in indices {
+        if let Some(user) = repos
+            .dicks
+            .get_nth_user(chat_id, Some(sender_id), idx as u32)
+            .await?
+        {
+            users.push(user);
+        }
+    }
+
+    Ok(users)
 }
 
 pub(crate) async fn fire_impl(
@@ -323,10 +383,11 @@ pub(crate) async fn fire_impl(
 
     log::debug!("from: {from:?}, chat_id: {chat_id:?}, total_amount: {total_amount}, recipients: {recipients_count}, per_person: {amount_per_person}");
 
-    let sender_length = match repos.dicks.fetch_length(from.id, &chat_id.kind()).await {
-        Ok(length) => length,
-        Err(_) => 0,
-    };
+    let sender_length: i32 = repos
+        .dicks
+        .fetch_length(from.id, &chat_id.kind())
+        .await
+        .unwrap_or_default();
 
     if sender_length < total_amount as i32 {
         return Ok(format!(
@@ -340,35 +401,29 @@ pub(crate) async fn fire_impl(
         ));
     }
 
-    let top_users = match repos
-        .dicks
-        .get_top(&chat_id.kind(), 0, recipients_count as u16 + 1)
-        .await
-    {
-        Ok(users) => users
-            .into_iter()
-            .filter(|user| user.owner_uid != UID::from(from.id))
-            .take(recipients_count as usize)
-            .collect::<Vec<_>>(),
-        Err(e) => {
-            return Ok(format!(
-                "{}",
-                t!(
-                    "commands.fire.error.unknown",
-                    locale = &lang_code,
-                    error = e.to_string()
-                )
-            ))
-        }
-    };
+    let random_users =
+        match get_random_chat_users(repos, &chat_id.kind(), from.id, recipients_count).await
+        {
+            Ok(users) => users,
+            Err(e) => {
+                return Ok(format!(
+                    "{}",
+                    t!(
+                        "commands.fire.error.unknown",
+                        locale = &lang_code,
+                        error = e.to_string()
+                    )
+                ))
+            }
+        };
 
-    if top_users.len() < recipients_count as usize {
+    if random_users.len() < recipients_count as usize {
         return Ok(format!(
             "{}",
             t!(
                 "commands.fire.error.not_enough_users",
                 locale = &lang_code,
-                found = top_users.len(),
+                found = random_users.len(),
                 required = recipients_count
             )
         ));
@@ -378,13 +433,13 @@ pub(crate) async fn fire_impl(
     let mut remaining_amount = total_amount;
 
     let mut futures = Vec::new();
-    for user in &top_users {
+    for user in &random_users {
         if remaining_amount < amount_per_person {
             break;
         }
 
         futures.push(repos.dicks.move_length(
-            &chat_id,
+            chat_id,
             from.id,
             user.owner_uid.into(),
             amount_per_person,
@@ -397,12 +452,25 @@ pub(crate) async fn fire_impl(
     for (i, result) in results.into_iter().enumerate() {
         match result {
             Ok((_, recipient_result)) => {
-                successful_transfers.push((&top_users[i], recipient_result.new_length));
+                successful_transfers.push((&random_users[i], recipient_result.new_length));
+                if let Err(e) = repos
+                    .transfers
+                    .log(
+                        chat_id,
+                        from.id,
+                        random_users[i].owner_uid.into(),
+                        amount_per_person as i32,
+                        TransferKind::Fire,
+                    )
+                    .await
+                {
+                    log::warn!("failed to log fire transfer to {:?}: {}", random_users[i].owner_uid, e);
+                }
             }
             Err(e) => {
                 log::warn!(
                     "Failed to transfer to user {:?}: {}",
-                    top_users[i].owner_uid,
+                    random_users[i].owner_uid,
                     e
                 );
                 remaining_amount += amount_per_person;
@@ -441,7 +509,7 @@ pub(crate) async fn fire_impl(
         t!(
             "commands.fire.result",
             locale = &lang_code,
-            sender = sender_name.to_string(),
+            sender = sender_name.value_ref(),
             total_amount = transferred_amount,
             recipients_count = successful_transfers.len(),
             amount_per_person = amount_per_person,
@@ -486,6 +554,7 @@ pub(crate) async fn top_impl(
     let query_limit = config.top_limit + 1; // fetch +1 row to know whether more rows exist or not
     let dicks = repos.dicks.get_top(&chat_id, offset, query_limit).await?;
     let has_more_pages = dicks.len() as u32 > top_limit;
+
     let lines = dicks
         .into_iter()
         .take(config.top_limit as usize)

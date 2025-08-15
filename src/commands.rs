@@ -5,6 +5,7 @@ use crate::handlers::{
     DickCommands, DickOfDayCommands, HelpCommands, ImportCommands, LoanCommands, PrivacyCommands,
     PromoCommands,
 };
+use crate::handlers::AdminCommands;
 use futures::future::join_all;
 use rust_i18n::t;
 use teloxide::requests::Requester;
@@ -31,7 +32,11 @@ pub async fn set_my_commands(
         LoanCommands::bot_commands(),
         StatsCommands::bot_commands(),
     ];
-    let admin_commands = [group_commands.clone(), vec![ImportCommands::bot_commands()]].concat();
+    let admin_commands = [
+        group_commands.clone(),
+        vec![ImportCommands::bot_commands(), AdminCommands::bot_commands()],
+    ]
+    .concat();
 
     let requests = vec![
         set_commands(

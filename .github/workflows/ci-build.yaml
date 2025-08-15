@@ -21,9 +21,13 @@ jobs:
 
       - name: Build
         run: cargo build --verbose
+        env:
+          SQLX_OFFLINE: true
 
       - name: Test
         run: cargo test --verbose
+        env:
+          SQLX_OFFLINE: true
 
       - run: echo "🍏 This job's status is ${{ job.status }}."
 

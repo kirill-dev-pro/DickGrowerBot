@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COUNT(*) as count\n                FROM dicks d\n                JOIN chats c ON c.id = d.chat_id\n                WHERE (c.chat_id = $1::bigint OR c.chat_instance = $1::text)\n                AND ($2::bigint IS NULL OR d.uid != $2)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "3abbcb112a18ed2824c8f466880b518435c4d63fc2ab46c89d641aace9dca568"
+}

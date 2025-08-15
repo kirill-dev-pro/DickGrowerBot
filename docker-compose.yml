@@ -6,6 +6,7 @@ services:
     container_name: dickgrowerbot
     restart: unless-stopped
     environment:
+      - API_KEY
       - TELOXIDE_TOKEN
       - RUST_LOG
       - WEBHOOK_URL
@@ -37,6 +38,9 @@ services:
       - ANNOUNCEMENT_MAX_SHOWS
       - ANNOUNCEMENT_EN
       - ANNOUNCEMENT_RU
+      - GIFT_RESTRICTIONS_FILE
+    volumes:
+      - ./config:/app/config:ro
     expose:
       - 8080
     networks:

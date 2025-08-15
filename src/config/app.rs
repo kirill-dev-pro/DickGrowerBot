@@ -4,6 +4,54 @@ use crate::config::toggles::*;
 use crate::domain::Ratio;
 use crate::domain::SupportedLanguage::{EN, RU};
 use reqwest::Url;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::fs;
+use std::path::Path;
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct GiftRestrictionsConfig {
+    pub restricted_users: Vec<RestrictedUser>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct RestrictedUser {
+    pub user_ids: Vec<u64>,
+    pub custom_name: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct GiftRestrictionConfig {
+    /// Bind user_id -> custom_name
+    pub restrictions: HashMap<u64, String>,
+}
+
+impl GiftRestrictionConfig {
+    pub fn load_from_file<P: AsRef<Path>>(path: P) -> Self {
+        fs::read_to_string(path)
+            .ok()
+            .and_then(|content| toml::from_str::<GiftRestrictionsConfig>(&content).ok())
+            .map(|config| {
+                config
+                    .restricted_users
+                    .into_iter()
+                    .flat_map(|user_group| {
+                        user_group
+                            .user_ids
+                            .into_iter()
+                            .map(move |user_id| (user_id, user_group.custom_name.clone()))
+                    })
+                    .collect()
+            })
+            .map(|restrictions| Self { restrictions })
+            .unwrap_or_else(|| {
+                log::warn!("Failed to load gift restrictions config");
+                Self {
+                    restrictions: HashMap::new(),
+                }
+            })
+    }
+}
 
 #[derive(Clone)]
 #[cfg_attr(test, derive(Default))]
@@ -16,6 +64,7 @@ pub struct AppConfig {
     pub fire_recipients: u16,
     pub announcements: AnnouncementsConfig,
     pub command_toggles: CachedEnvToggles,
+    pub gift_restriction: GiftRestrictionConfig,
 }
 
 #[derive(Clone)]
@@ -42,6 +91,16 @@ impl AppConfig {
         let announcement_max_shows = get_optional_env_value("ANNOUNCEMENT_MAX_SHOWS");
         let announcement_en = get_optional_env_value("ANNOUNCEMENT_EN");
         let announcement_ru = get_optional_env_value("ANNOUNCEMENT_RU");
+        let gift_restriction_file: String = get_optional_env_value("GIFT_RESTRICTIONS_FILE");
+
+        let gift_restriction = if gift_restriction_file.is_empty() {
+            log::warn!("GIFT_RESTRICTIONS_FILE is empty, using default gift restrictions");
+            GiftRestrictionConfig::default()
+        } else {
+            log::info!("Loading gift restrictions from file: {}", gift_restriction_file);
+            GiftRestrictionConfig::load_from_file(gift_restriction_file)
+        };
+
         Self {
             features: FeatureToggles {
                 chats_merging,
@@ -69,6 +128,7 @@ impl AppConfig {
                     .collect(),
             },
             command_toggles: Default::default(),
+            gift_restriction,
         }
     }
 }

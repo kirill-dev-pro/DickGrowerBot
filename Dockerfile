@@ -22,7 +22,7 @@ COPY .sqlx/ .sqlx/
 COPY Cargo.* ./
 
 ENV RUSTFLAGS='-C target-feature=-crt-static'
-RUN cargo build --release && mv target/release/dick-grower-bot /dickGrowerBot
+RUN cargo build --release --bin dick-grower-bot && mv target/release/dick-grower-bot /dickGrowerBot
 
 FROM alpine:3.21
 RUN apk update && apk add --no-cache libgcc
@@ -34,6 +34,8 @@ COPY --from=builder /etc/group /etc/group
 USER appuser:appuser
 
 EXPOSE 8080
+
+ARG API_KEY
 ARG TELOXIDE_TOKEN
 ARG RUST_LOG
 ARG WEBHOOK_URL
@@ -65,6 +67,7 @@ ARG DOD_RICH_EXCLUSION_RATIO
 ARG ANNOUNCEMENT_MAX_SHOWS
 ARG ANNOUNCEMENT_EN
 ARG ANNOUNCEMENT_RU
+ARG GIFT_RESTRICTIONS_FILE
 ENTRYPOINT [ "/usr/local/bin/dickGrowerBot" ]
 
 LABEL org.opencontainers.image.source=https://github.com/kozalosev/DickGrowerBot

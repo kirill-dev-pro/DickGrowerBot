@@ -13,10 +13,10 @@ commands:
     tomorrow: "You have already played with your dick today."
   top:
     description: "Get the biggest dicks of the chat"
-    title: "Top of the biggest dicks:"
-    line: "%{n}|<b>%{name}</b> — <b>%{length}</b> cm"
+    title: "🏆 Top of the biggest dicks"
+    line: "%{n}) <b>%{name}</b> · <b>%{length}</b> cm"
     ending: "<i>[+] means a grower hasn't grown his dick today yet.</i>"
-    empty: "No one is in the game yet :("
+    empty: "No one is in the game yet."
   gift:
     description: "Gift dick to a friend"
     result: "<b>%{sender}</b> gifted <b>%{amount} cm</b> of dick to <b>%{recipient}</b>!\n\nNow the giver has <b>%{sender_length} cm</b>, and the recipient has <b>%{recipient_length} cm</b>."
@@ -25,15 +25,23 @@ commands:
       not_enough: "Your micropenis is too short! You have <b>%{current} cm</b>, but need <b>%{required} cm</b>"
       same_person: "You can't gift your dick to yourself"
       wrong_person: "You can't gift your dick to this person"
+      restricted_user: "You can't gift your dick %{name}"
       usage: "Use this command as a reply to a message with the amount of centimeters to gift"
       unknown: "Error: %{error}"
+  deluser:
+    description: "Delete a user"
+    success: "User %{name} has been deleted"
+    errors:
+      usage: "Provide a user ID or reply to the user's message"
+      not_admin: "This command is available to chat administrators only"
+      not_found: "User %{uid} not found"
   fire:
     description: "Share your dick with multiple people"
     result: "<b>%{sender}</b> distributed <b>%{total_amount} cm</b> among <b>%{recipients_count}</b> people (<b>%{amount_per_person} cm</b> each)!\n\nSender now has <b>%{sender_length} cm</b>."
     line: "<b>%{name}</b> — <b>%{length}</b> cm"
     error:
       usage: "Usage: Distribute amount among multiple people"
-      invalid_amount: "Invalid amount! Please specify a positive number."
+      invalid_amount: "You want to gift something other than centimeters?"
       not_divisible: "Amount <b>%{amount}</b> cannot be evenly divided among <b>%{recipients}</b> people."
       too_small: "Amount per person would be 0 cm. Increase the total amount."
       not_enough: "Your dick is too short! You have <b>%{current} cm</b>, but need <b>%{required} cm</b>."
@@ -45,7 +53,7 @@ commands:
     result: "The Dick of the Day is <b><a href=\"tg://user?id=%{uid}\">%{name}</a></b>!\n\nHis dick has become longer for <b>%{growth} cm</b> and is <b>%{length}</b> cm long now."
     position: "His position in the top is <b>%{pos}</b>."
     already_chosen: "The Dick of the Day has been already chosen for today! It's <b>%{name}</b>."
-    no_candidates: "There is no candidates for election. In this chat nobody is in the game yet 😢"
+    no_candidates: "There are no candidates for election. In this chat nobody is in the game yet."
   pvp:
     description: "Fight with your friend's dick!"
     results:
@@ -63,15 +71,16 @@ commands:
       no_args: "Call the command with a number of centimeters you're willing to bet."
       not_enough:
         initiator: "Meh. The initiator's dick is not long enough for such a big bet!"
-        acceptor: "Your gun is not long enough 😣"
-      same_person: "You cannot fight with yourself!"
-      battle_already_in_progress: "The fight is in progress already! The message will be updated in a moment…"
+        acceptor: "Your gun is not long enough."
+        same_person: "You cannot fight with yourself!"
+        battle_already_in_progress: "The fight is in progress already! The message will be updated in a moment..."
   stats:
     description: "Statistics"
-    length: "Length: <b>%{length}</b>\nPosition in the top: <b>%{pos}</b>"
-    pvp: "Win rate: <b>%{win_rate}</b>.\nFights: <b>%{battles}</b>.\nWins: <b>%{wins}</b>.\nMax win streak: <b>%{win_streak}</b>.\nAcquired length: <b>%{acquired} cm</b>.\nLost length: <b>%{lost} cm</b>."
-    notice: "The collection of statistics started on July 2, 2024."
-    personal: "<i>Your personal statistics:</i>\n— Number of the chats in which you play: <b>%{chats}</b>.\n— Maximum length: <b>%{max_length}</b>.\n— Sum of dicks across all the chats: <b>%{total_length}</b>."
+    length: "📊 %{name}\n├─ Length: %{length} cm\n├─ Distributions:\n│  + given: %{given_cm} cm\n│  + received: %{received_cm} cm\n└─ Top: #%{pos}"
+    pvp: "⚔ PvP\n├─ Battles: %{battles} (🏆 %{win_rate})\n│  + wins: %{wins}\n│  + losses: %{losses}\n├─ Streaks:\n│  + wins: %{win_streak_current} (max %{win_streak})\n│  + losses: %{lose_streak_current} (max %{lose_streak_max})\n└─ Length: +%{acquired} cm / -%{lost} cm"
+    casino: "<span class=\"tg-spoiler\">🎲 Casino\n├─ Bets: %{bets}\n│  + wins: %{wins}\n│  + losses: %{losses}\n├─ Streaks:\n│  + wins: %{win_streak_current} (max %{win_streak})\n│  + losses: %{lose_streak_current} (max %{lose_streak_max})\n└─ Length: +%{acquired} cm / -%{lost} cm</span>"
+    notice: "📅 Statistics have been collected since %{date}"
+    personal: "- Number of the chats in which you play: <b>%{chats}</b>.\n- Maximum length: <b>%{max_length}</b>.\n- Sum of dicks across all the chats: <b>%{total_length}</b>."
   loan:
     description: "Minus? Take a loan!"
     debt: "Left to pay <b>%{debt} cm</b>"
@@ -94,15 +103,15 @@ commands:
         already_present: "The following users were already imported earlier:"
         not_found: "The following users are not in the game yet:"
       line:
-        imported: "➖ <b>%{name}</b> (<i>%{length}</i> cm)"
-        already_present: "➖ <b>%{name}</b> (<i>%{length}</i> cm)"
-        not_found: "➖ <b>%{name}</b>"
+        imported: "- <b>%{name}</b> (<i>%{length}</i> cm)"
+        already_present: "- <b>%{name}</b> (<i>%{length}</i> cm)"
+        not_found: "- <b>%{name}</b>"
     errors:
       not_admin: "This command is supposed to be used by admins only!"
       not_reply: "You must reply to a non-forwarded message sent by any of %{origin_bots}"
       invalid_lines:
-        template: "Couldn't parse this message 🤔\nThe following lines are invalid:\n%{invalid_lines}"
-        line: "➖ <b>%{line}</b>"
+        template: "Couldn't parse this message.\nThe following lines are invalid:\n%{invalid_lines}"
+        line: "- <b>%{line}</b>"
   promo:
     description: "Activate a promo code"
     request: "Enter a promo code:"
@@ -111,14 +120,14 @@ commands:
       singular: "Your dick has grown by <b>%{growth}</b> cm in one chat."
       plural: "Your dick has grown by <b>%{growth}</b> cm in <b>%{affected_chats}</b> chats!"
     errors:
-      no_activations_left: "I'm so sorry but this promo code either does not exist at all, or expired, or exhausted 😞"
-      already_activated: "It seems you already used this promocode earlier 🤨"
-      no_dicks: "It seems you don't have any dicks yet. 🤔 Right now is the time to add me into a chat and execute the <code>/grow</code> command!"
+      no_activations_left: "This promo code either does not exist, has expired, or has no activations left."
+      already_activated: "It seems you already used this promo code earlier."
+      no_dicks: "It seems you don't have any dicks yet. Right now is the time to add me to a chat and execute the <code>/grow</code> command!"
     inline:
-      switch_button: "Activate promo code '%{code}'…"
+      switch_button: "Activate promo code '%{code}'..."
 inline:
   results:
-    text: "Since I cannot determine the chat by an inline query, you should click on the button bellow to get the result."
+    text: "Since I cannot determine the chat from an inline query, click the button below to get the result."
     button: "Click me!"
     titles:
       grow: "Grow your dick!"
@@ -132,7 +141,7 @@ inline:
       another_user: "This message was sent by another person."
       invalid_data: "Possibly this message was sent via an older version of the bot. Try to resend it again."
       unknown_data: "Unknown command"
-      no_data: "Something went wrong…"
+      no_data: "Something went wrong..."
 titles:
   greeting: "Hello"
   time_till_next_day:
@@ -145,3 +154,7 @@ titles:
 errors:
   not_group_chat: "This bot is supposed to do its mission in group chats only!"
   feature_disabled: "This feature is currently temporarily disabled."
+api:
+  adjust:
+    increased: "<b>%{name}</b>'s dick was increased by <b>%{delta} cm</b>. Current length: <b>%{length} cm</b>.\nReason: %{reason}"
+    decreased: "<b>%{name}</b>'s dick was decreased by <b>%{delta} cm</b>. Current length: <b>%{length} cm</b>.\nReason: %{reason}"

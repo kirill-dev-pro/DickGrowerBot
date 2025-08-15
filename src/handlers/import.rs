@@ -1,6 +1,7 @@
 use crate::domain::{LanguageCode, Username};
 use crate::handlers::{reply_html, HandlerResult};
-use crate::{metrics, reply_html, repo};
+use crate::reply_html;
+use crate::{metrics, repo};
 use anyhow::{anyhow, bail};
 use once_cell::sync::Lazy;
 use regex::{Captures, Regex};
@@ -241,10 +242,7 @@ async fn check_and_parse_message(
         .reply_to_message()
         .filter(|m| m.forward_origin().is_none())
         .and_then(check_reply_source_and_text);
-    let result = match result {
-        None => return Err(BeforeImportCheckErrors::NotReply),
-        Some(res) => res,
-    };
+    let result = result.ok_or(BeforeImportCheckErrors::NotReply)?;
 
     Ok(result)
 }
@@ -378,7 +376,7 @@ mod tests {
     fn original_bot_kind_try_from() {
         let check = |variant: &str, kind| {
             let second_variant = variant.strip_prefix('@').expect("no '@' prefix");
-            let valid_variants = [variant, &second_variant];
+            let valid_variants = [variant, second_variant];
             assert!(valid_variants
                 .into_iter()
                 .all(|v| OriginalBotKind::try_from(v).is_ok_and(|k| k == kind)));

@@ -5,6 +5,7 @@ mod handlers;
 mod help;
 mod metrics;
 mod repo;
+mod api;
 
 use crate::handlers::pvp::{BattleCommands, BattleCommandsNoArgs};
 use crate::handlers::stats::StatsCommands;
@@ -12,7 +13,7 @@ use crate::handlers::utils::locks::LockCallbackServiceFacade;
 use crate::handlers::{
     checks, HelpCommands, LoanCommands, PrivacyCommands, PromoCommandState, StartCommands,
 };
-use crate::handlers::{DickCommands, DickOfDayCommands, ImportCommands, PromoCommands};
+use crate::handlers::{AdminCommands, DickCommands, DickOfDayCommands, ImportCommands, PromoCommands};
 use futures::future::join_all;
 use reqwest::Url;
 use rust_i18n::i18n;
@@ -95,6 +96,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .filter_command::<ImportCommands>()
                 .filter(checks::is_group_chat)
                 .endpoint(handlers::import_cmd_handler),
+        )
+        .branch(
+            Update::filter_message()
+                .filter_command::<AdminCommands>()
+                .filter(checks::is_group_chat)
+                .endpoint(handlers::admin_cmd_handler),
         )
         .branch(
             Update::filter_message()
@@ -197,6 +204,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
     let metrics_router = metrics::init();
 
+    let api_key = std::env::var("API_KEY").unwrap_or_default();
+    if api_key.is_empty() {
+        log::warn!("API_KEY is empty; API endpoint will reject all requests");
+    }
+    let api_router = api::router(api::ApiState {
+        repos: repos.clone(),
+        bot: bot.clone(),
+        api_key,
+    });
+
     let ignore_unknown_updates = |_| Box::pin(async {});
     let deps = deps![
         repos,
@@ -224,11 +241,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let bot_fut = dispatcher.dispatch_with_listener(listener, error_handler);
 
             let srv = tokio::spawn(async move {
-                let tcp_listener = tokio::net::TcpListener::bind(addr).await.map_err(|err| {
-                    stop_token.stop();
-                    err
-                })?;
-                let app = axum::Router::new().merge(metrics_router).merge(bot_router);
+                let tcp_listener = tokio::net::TcpListener::bind(addr)
+                    .await
+                    .inspect_err(|_err| {
+                        stop_token.stop();
+                    })?;
+                let app = axum::Router::new()
+                    .merge(metrics_router)
+                    .merge(bot_router)
+                    .merge(api_router);
                 axum::serve(tcp_listener, app)
                     .with_graceful_shutdown(stop_flag)
                     .await
@@ -252,7 +273,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let srv = tokio::spawn(async move {
                 let tcp_listener = tokio::net::TcpListener::bind(addr).await?;
-                axum::serve(tcp_listener, metrics_router)
+                let app = axum::Router::new()
+                    .merge(metrics_router)
+                    .merge(api_router);
+                axum::serve(tcp_listener, app)
                     .with_graceful_shutdown(async {
                         tokio::signal::ctrl_c()
                             .await
